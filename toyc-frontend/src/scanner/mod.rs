@@ -1,23 +1,10 @@
-use std::io::{BufReader, Seek};
-use std::path::Path;
+use std::io::{Seek};
+use std::iter::Peekable;
+use std::str::Chars;
 
 pub mod token;
 
-pub struct Scanner<T>
-where T: Sized + Sync + Send + Seek,
+pub struct ToyCScanner<'a>
 {
-    file_name: String,
-    bufreader: BufReader<T>,
-    lines_read: usize,
-}
-
-impl<T> Scanner<T>{
-
-    pub fn new(path: Path) -> Self{
-        let name = path.file_name().expect("error file not found");
-
-        Self{
-
-        }
-    }
+    line: Peekable<Chars<'a>>,
 }

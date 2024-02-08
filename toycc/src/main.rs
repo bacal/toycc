@@ -1,5 +1,10 @@
 use std::fs::File;
-use frontend::scanner::Scanner;
+use clap::Parser;
+
+use toyc_frontend::ToyCFrontend as FrontEnd;
+use toycc_api::frontend::prelude::*;
+use toycc_api::TccFrontEnd;
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about, after_help = "ToyC Compiler for EGRE591 (SPRING 2024)")]
 struct Arguments{
@@ -25,4 +30,6 @@ struct Arguments{
 fn main(){
     let args = Arguments::parse();
     let f = File::open(&args.file_names[0].as_str()).expect("file not found");
+    // let mut frontend = FrontEnd::new();
+    // frontend.load_data(f);
 }

@@ -24,9 +24,9 @@ pub enum MulOP{
     And,
 }
 
-#[derive(Debug,Clone)]
-pub enum Token{
-    // Keywords
+
+#[derive(Debug, Clone)]
+pub enum Keyword{
     Break,
     Char, Case, Continue,
     Default, Do,
@@ -37,7 +37,16 @@ pub enum Token{
     Return, Read,
     Switch,
     While, Write,
+}
+#[derive(Debug, Clone)]
+pub enum Delimiter{
+    LParen, RParen, LCurly, RCurly, LBracket, RBracket,
+    Comma, Semicolon, Not, Colon,
+}
 
+#[derive(Debug,Clone)]
+pub enum Token{
+    Keyword(Keyword),
     Identifier(String),
     Number(f64),
     CharLiteral(char),
@@ -46,10 +55,7 @@ pub enum Token{
     MulOP(MulOP),
     AddOP(AddOP),
     AssignOP,
-
-    LParen, RParen, LCurly, RCurly, LBracket, RBracket,
-    Comma, Semicolon, Not, Colon,
-
+    Delimiter(Delimiter),
     Eof,
 }
 
@@ -87,26 +93,73 @@ impl Display for MulOP{
     }
 }
 
+impl Display for Keyword{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f,"{}",match self{
+            Self::Int => "INT",
+            Self::Char => "CHAR",
+            Self::Return => "RETURN",
+            Self::If => "IF",
+            Self::Else => "ELSE",
+            Self::For => "FOR",
+            Self::Do => "DO",
+            Self::While => "WHILE",
+            Self::Switch => "SWITCH",
+            Self::Case => "CASE",
+            Self::Default => "DEFAULT",
+            Self::Write => "WRITE",
+            Self::Read => "READ",
+            Self::Continue => "CONTINUE",
+            Self::Break => "BREAK",
+            Self::Newline => "NEWLINE",
+        })
+    }
+}
+
+impl Display for Delimiter{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f,"{}",match self{
+            Self::LParen => "(",
+            Self::RParen => ")",
+            Self::LCurly => "{",
+            Self::RCurly => "}",
+            Self::LBracket => "[",
+            Self::RBracket => "]",
+            Self::Comma => ",",
+            Self::Semicolon => ";",
+            Self::Not => "!",
+            Self::Colon => ":",
+        })
+    }
+}
+
+impl<'a> Into<(&'a str, &'a str)> for Delimiter{
+    fn into(self) -> (&'a str, &'a str) {
+        match self{
+            Delimiter::LParen => ("LPAREN","("),
+            Delimiter::RParen => ("RPAREN",")"),
+            Delimiter::LCurly => ("LCURLY","{"),
+            Delimiter::RCurly => ("RCURLY","}"),
+            Delimiter::LBracket => ("LBRACKET","["),
+            Delimiter::RBracket => ("RBRACKET","]"),
+            Delimiter::Comma => ("COMMA",","),
+            Delimiter::Semicolon => ("SEMICOLON",";"),
+            Delimiter::Not => ("NOT","!"),
+            Delimiter::Colon => ("COLON",":"),
+        }
+    }
+}
+
 impl Display for Token{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let opstr;
+        let opstr2;
         let pair = match self{
-            Token::Int => ("INT","int"),
-            Token::Char => ("CHAR","char"),
-            Token::Return => ("RETURN","return"),
-            Token::If => ("IF","if"),
-            Token::Else => ("ELSE","else"),
-            Token::For => ("FOR","for"),
-            Token::Do => ("DO","do"),
-            Token::While => ("WHILE","while"),
-            Token::Switch => ("SWITCH","switch"),
-            Token::Case => ("CASE","case"),
-            Token::Default => ("DEFAULT","default"),
-            Token::Write => ("WRITE","write"),
-            Token::Read => ("READ","read"),
-            Token::Continue => ("CONTINUE","continue"),
-            Token::Break => ("BREAK","break"),
-            Token::Newline => ("NEWLINE","newline"),
+            Token::Keyword(keyword) => {
+                opstr = keyword.to_string();
+                opstr2 = opstr.to_lowercase();
+                (opstr.as_str(), opstr.as_str())
+            },
             Token::Identifier(id) => ("ID",id.as_str()),
             Token::Number(num) => {
                 opstr = num.to_string();
@@ -133,17 +186,8 @@ impl Display for Token{
                 ("ADDOP",opstr.as_str())
             },
             Token::AssignOP => ("ASSIGNOP","="),
-            Token::LParen => ("LPAREN","("),
-            Token::RParen => ("RPAREN",")"),
-            Token::LCurly => ("LCURLY","{"),
-            Token::RCurly => ("RCURLY","}"),
-            Token::LBracket => ("LBRACKET","["),
-            Token::RBracket => ("RBRACKET","]"),
-            Token::Comma => ("COMMA",","),
-            Token::Semicolon => ("SEMICOLON",";"),
-            Token::Not => ("NOT","!"),
-            Token::Colon => ("COLON",":"),
             Token::Eof => ("EOF", "EOF"),
+            Token::Delimiter(del) => del.clone().into(),
         };
         write!(f,"(<{}>,\"{}\")",pair.0,pair.1)
     }
