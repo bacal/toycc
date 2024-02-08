@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 toycc-api = {path = "../toycc-api"}
+thiserror = "1.0.56"

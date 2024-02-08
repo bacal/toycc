@@ -1,12 +1,13 @@
 use std::io::{BufReader, Read, Seek};
 use toycc_api::TccFrontEnd;
+use crate::scanner::ToyCScanner;
 
 pub mod scanner;
 
 pub struct ToyCFrontend<T>
 where T: Read + Sync + Seek
 {
-    reader: Option<BufReader<T>>,
+    scanner: Option<ToyCScanner<T>>
 }
 
 
@@ -15,7 +16,7 @@ where T: Read + Sync + Seek
 {
     pub fn new() -> Self{
         Self{
-            reader: None,
+            scanner: None,
         }
     }
 }
