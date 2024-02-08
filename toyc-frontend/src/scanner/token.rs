@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone, PartialEq)]
 pub enum RelOP{
     EqualsEquals,
     NotEquals,
@@ -10,13 +10,13 @@ pub enum RelOP{
     GreaterThan,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone, PartialEq)]
 pub enum AddOP{
     Plus,
     Minus,
     Or,
 }
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone, PartialEq)]
 pub enum MulOP{
     Multiply,
     Divide,
@@ -25,7 +25,7 @@ pub enum MulOP{
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Keyword{
     Break,
     Char, Case, Continue,
@@ -38,13 +38,13 @@ pub enum Keyword{
     Switch,
     While, Write,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Delimiter{
     LParen, RParen, LCurly, RCurly, LBracket, RBracket,
     Comma, Semicolon, Not, Colon,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone, PartialEq)]
 pub enum Token{
     Keyword(Keyword),
     Identifier(String),
