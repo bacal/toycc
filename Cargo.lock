@@ -138,19 +138,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "toyc-backend"
-version = "0.1.0"
-
-[[package]]
 name = "toyc-frontend"
 version = "0.1.0"
+dependencies = [
+ "toycc-api",
+]
 
 [[package]]
 name = "toycc"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "toyc-frontend",
+ "toycc-api",
 ]
+
+[[package]]
+name = "toycc-api"
+version = "0.1.0"
 
 [[package]]
 name = "unicode-ident"

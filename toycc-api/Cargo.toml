@@ -1,5 +1,5 @@
 [package]
-name = "toyc-backend"
+name = "toycc-api"
 version = "0.1.0"
 edition = "2021"
 
