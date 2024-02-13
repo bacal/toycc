@@ -1,8 +1,17 @@
-[workspace]
+[package]
+name = "toycc"
+authors = ["Bacal Mesfin <mesfinb2@vcu.edu>", ""]
+version = "0.1.0"
+edition = "2021"
+categories = ["compilers"]
 
+[workspace]
 members = [
-    "toycc-api",
-    "toyc-frontend",
-#    "toyc-backend",
-    "toycc",
-]
+    "compiler/toycc_report",
+    "compiler/toycc_parser"]
+
+[dependencies]
+clap = { version = "4.5.0", features = ["derive"] }
+colored = "2.1.0"
+toycc_parser = {path = "compiler/toycc_parser"}
+toycc_report = {path = "compiler/toycc_report"}

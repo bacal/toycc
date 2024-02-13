@@ -1,0 +1,10 @@
+[package]
+name = "toycc_report"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1.0.57"
+toycc_report_impl = {path = "toycc_report_impl" }
+colored = "2.1.0"
+log = "0.4.20"

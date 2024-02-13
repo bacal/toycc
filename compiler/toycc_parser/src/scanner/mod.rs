@@ -3,7 +3,7 @@ use std::iter::{Peekable, Scan};
 use std::num::ParseFloatError;
 use std::str::Chars;
 use thiserror::Error;
-use crate::scanner::token::{Keyword, Token};
+use crate::scanner::token::{Keyword, Token, TokenKind};
 
 pub mod token;
 
@@ -24,6 +24,7 @@ pub struct ToyCScanner<S: Read> {
     state: State,
     lines: Peekable<Lines<BufReader<S>>>,
     position: usize,
+    debug: Option<i32>,
 }
 
 #[derive(Debug, Error, PartialEq)]
@@ -37,8 +38,9 @@ pub enum ScannerError{
 
 impl<S: Read> ToyCScanner<S>{
 
-    pub fn new(stream: S) -> Self{
+    pub fn new(stream: S, debug: Option<i32>) -> Self{
         Self{
+            debug,
             state: State::Initial,
             lines: BufReader::new(stream).lines().peekable(),
             buffer: String::new(),
@@ -110,7 +112,7 @@ impl<S: Read> ToyCScanner<S>{
                         'E' => self.change_state(State::Exponent,c),
                         '.' => self.change_state(State::Float,c),
                         _ => return match self.buffer.parse::<f64>(){
-                            Ok(num) =>  Ok(Token::Number(num)),
+                            Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
                             Err(_) =>  Err(ScannerError::MalformedNumber(self.buffer.clone()))
                         }
                     }
@@ -126,7 +128,7 @@ impl<S: Read> ToyCScanner<S>{
                     match c{
                         ('0'..='9') => self.push_char(c),
                         _ => return match self.buffer.parse::<f64>(){
-                            Ok(num) =>  Ok(Token::Number(num)),
+                            Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
                             Err(_) =>  Err(ScannerError::MalformedNumber(self.buffer.clone()))
                         }
                     }
@@ -143,23 +145,37 @@ impl<S: Read> ToyCScanner<S>{
             }
         }
         // When we run out of data in our source stream we return the EOF token
-        Ok(Token::Eof)
+        Ok(Token::new(TokenKind::Eof,0))
     }
 
+    pub fn create_token(&mut self, kind: TokenKind, len: usize) -> Token{
+        let token = Token::new(kind,len);
+        if let Some(level) = self.debug{
+            match level{
+                _ => println!("{token}")
+            }
+        }
+        token
+    }
 }
 
 fn keyword_or_id_token(data: &str) -> Token{
-    match data{
-        "int" => Token::Keyword(Keyword::Int),
-        _ => Token::Identifier(data.to_owned()),
-    }
+    let kind = match data{
+        "int" => TokenKind::Keyword(Keyword::Int),
+        _ => TokenKind::Identifier(data.to_owned()),
+    };
+    Token::new(kind, data.len())
 }
 
-#[test]
-fn test_scanner(){
-    let data = "int a\n int b";
-    let mut scanner = ToyCScanner::new(data.as_bytes());
-    let t = scanner.next_token();
+#[cfg(test)]
+mod test_integration{
+    use super::*;
+    #[test]
+    fn test_scanner() {
+        let data = "int a\n int b";
+        let mut scanner = ToyCScanner::new(data.as_bytes(), None);
+        let t = scanner.next_token();
 
-    assert_eq!(t,Ok(Token::Keyword(Keyword::Int)))
+        assert_eq!(t, Ok(Token::new(TokenKind::Keyword(Keyword::Int),3)))
+    }
 }
