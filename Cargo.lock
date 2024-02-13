@@ -193,7 +193,8 @@ dependencies = [
 name = "toycc_parser"
 version = "0.1.0"
 dependencies = [
- "thiserror",
+ "colored",
+ "toycc_report",
 ]
 
 [[package]]

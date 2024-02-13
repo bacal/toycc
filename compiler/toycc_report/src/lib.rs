@@ -6,22 +6,23 @@ pub enum ErrorKind{
         source: String,
     },
     SimpleError(String),
+    NoInfoError,
 }
 
 pub enum WarningKind{
 
 }
 
-pub enum Level{
+pub enum ReportLevel{
     Warning(WarningKind),
     Error(ErrorKind)
 }
 
 pub trait Diagnostic{
-    fn info(&self) -> &str;
-    fn level(&self) -> Level;
+    fn info(&self) -> String;
+    fn level(&self) -> ReportLevel;
     fn help(&self) -> Option<&str>;
-    fn others(&self) -> Option<&dyn Diagnostic>;
+    fn others(&self) -> Option<&dyn Report>;
 }
 
 

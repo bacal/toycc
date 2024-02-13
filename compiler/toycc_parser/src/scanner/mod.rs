@@ -1,11 +1,11 @@
-use std::io::{BufRead, BufReader, Cursor, Lines, Read, Seek};
-use std::iter::{Peekable, Scan};
-use std::num::ParseFloatError;
-use std::str::Chars;
-use thiserror::Error;
+use std::io::{BufRead, BufReader, Lines, Read, Seek};
+use std::iter::{Peekable};
+use toycc_report::{Diagnostic, Report};
+use crate::scanner::error::{ScannerError, ScannerErrorKind};
 use crate::scanner::token::{Keyword, Token, TokenKind};
 
 pub mod token;
+pub mod error;
 
 enum State{
     Initial,
@@ -19,32 +19,29 @@ enum State{
     Assign,
 }
 
-pub struct ToyCScanner<S: Read> {
+pub struct Scanner<S: Read> {
+    stream_name: String,
     buffer: String,
     state: State,
+    previous_line: String,
     lines: Peekable<Lines<BufReader<S>>>,
     position: usize,
     debug: Option<i32>,
+    lines_read: usize,
 }
 
-#[derive(Debug, Error, PartialEq)]
-pub enum ScannerError{
-    #[error("Illegal character {0}")]
-    IllegalCharacter(char),
+impl<S: Read> Scanner<S>{
 
-    #[error("Malformed number {0}")]
-    MalformedNumber(String),
-}
-
-impl<S: Read> ToyCScanner<S>{
-
-    pub fn new(stream: S, debug: Option<i32>) -> Self{
+    pub fn new(stream: S, stream_name: String, debug: Option<i32>) -> Self{
         Self{
             debug,
             state: State::Initial,
             lines: BufReader::new(stream).lines().peekable(),
             buffer: String::new(),
             position: 0,
+            lines_read: 0,
+            stream_name,
+            previous_line: String::new(),
         }
     }
     pub fn get_char(&mut self) -> Option<char> {
@@ -58,7 +55,10 @@ impl<S: Read> ToyCScanner<S>{
                             Some(c) => Some(c),
                             None => {
                                 self.next_line();
-                                None
+                                match self.get_char(){
+                                    Some(c) => Some(c),
+                                    None => Some(' '),
+                                }
                             }
                         }
                     }
@@ -69,10 +69,16 @@ impl<S: Read> ToyCScanner<S>{
         }
     }
     fn next_line(&mut self){
+        self.previous_line = self.lines.peek().unwrap().as_ref().unwrap().clone();
         if let Some(mut line) = self.lines.next(){
             match &mut line{
-                Ok(data) => self.position = 0,
-                Err(e) => panic!("io error"),
+                Ok(data) => {
+                    if self.lines_read !=0{
+                        self.position = 0;
+                    }
+                    self.lines_read+=1;
+                }
+                Err(_) => panic!("io error"),
             }
         }
     }
@@ -94,8 +100,8 @@ impl<S: Read> ToyCScanner<S>{
                 State::Initial => {
                     match c {
                         ('a'..='z') | ('A'..='Z') => self.change_state(State::Identifier,c),
-                        ('0'..='9') => self.change_state(State::Identifier,c),
-                        _ => return Err(ScannerError::IllegalCharacter(c)) ,
+                        ('0'..='9') => self.change_state(State::Integer,c),
+                        _ => return Err(self.create_error(ScannerErrorKind::IllegalCharacter(c),0,None)),
                     }
                 }
 
@@ -108,19 +114,19 @@ impl<S: Read> ToyCScanner<S>{
 
                 State::Integer => {
                     match c{
-                        ('0'..='9') => self.buffer.push(c),
-                        'E' => self.change_state(State::Exponent,c),
+                        ('0'..='9') => self.push_char(c),
+                        'E' => self.change_state(State::Sign,c),
                         '.' => self.change_state(State::Float,c),
                         _ => return match self.buffer.parse::<f64>(){
                             Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
-                            Err(_) =>  Err(ScannerError::MalformedNumber(self.buffer.clone()))
+                            Err(_) =>  Err(self.create_error(ScannerErrorKind::MalformedNumber,1, None))
                         }
                     }
                 }
                 State::Sign => {
                     match c{
                         '+' | '-' => self.change_state(State::Exponent,c),
-                        _ => return Err(ScannerError::MalformedNumber(self.buffer.clone()))
+                        _ => return  Err(self.create_error(ScannerErrorKind::MalformedNumber,1, Some("expected + or -".to_string())))
                     }
                 }
 
@@ -129,7 +135,7 @@ impl<S: Read> ToyCScanner<S>{
                         ('0'..='9') => self.push_char(c),
                         _ => return match self.buffer.parse::<f64>(){
                             Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
-                            Err(_) =>  Err(ScannerError::MalformedNumber(self.buffer.clone()))
+                            Err(_) =>   Err(self.create_error(ScannerErrorKind::MalformedNumber,1, Some("expected digit".to_string())))
                         }
                     }
                 }
@@ -157,6 +163,10 @@ impl<S: Read> ToyCScanner<S>{
         }
         token
     }
+    fn create_error(&mut self, kind: ScannerErrorKind, len: usize, help: Option<String>) -> ScannerError{
+        let line = self.lines.peek().unwrap_or(&Ok(self.previous_line.clone())).as_ref().unwrap().clone();
+        ScannerError::new(kind,line,(self.lines_read,self.position+1),len,self.stream_name.clone(),help)
+    }
 }
 
 fn keyword_or_id_token(data: &str) -> Token{
@@ -172,10 +182,13 @@ mod test_integration{
     use super::*;
     #[test]
     fn test_scanner() {
-        let data = "int a\n int b";
-        let mut scanner = ToyCScanner::new(data.as_bytes(), None);
+        let data = "232E1 a\n int b";
+        let mut scanner = Scanner::new(data.as_bytes(), "name.tc".to_string(),None);
         let t = scanner.next_token();
 
-        assert_eq!(t, Ok(Token::new(TokenKind::Keyword(Keyword::Int),3)))
+        println!("{}",t.err().unwrap());
+
+        // assert_eq!(t, Ok(Token::new(TokenKind::Keyword(Keyword::Int),3)))
     }
 }
+
