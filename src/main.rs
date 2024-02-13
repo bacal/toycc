@@ -1,16 +1,17 @@
 mod error;
 
+use std::fmt::Display;
 use std::fs::File;
-use std::io::Cursor;
 use std::process::exit;
 use std::string::ToString;
 use clap::Parser as Clap_Parser;
 use toycc_parser::Parser;
-use toycc_report::{Diagnostic, ErrorKind, ReportLevel, Report};
+use toycc_report::{Diagnostic, Report};
+use crate::error::Error;
 
 #[derive(Clap_Parser, Debug)]
 #[command(author, version, about, long_about, after_help = "ToyC Compiler for EGRE591 (SPRING 2024)")]
-struct Arguments{
+struct Arguments {
     #[arg(value_name = "INPUT", required = false)]
     file_names: Vec<String>,
 
@@ -18,50 +19,17 @@ struct Arguments{
     short,
     long,
     value_name = "level",
-    help="Display messages that aid in tracing the compilation process.\
+    help = "Display messages that aid in tracing the compilation process.\
               \n0 - all messages \
               \n1 - scanner messages only",
     default_value = None
     )]
     debug: Option<i32>,
 
-    #[arg(short, long, help="Display all information")]
+    #[arg(short, long, help = "Display all information")]
     verbose: bool,
 }
-#[derive(Report)]
-enum Error{
-    MissingInput,
-    FileNotFound(String),
-    Nothing,
-}
 
-impl Diagnostic for Error{
-
-    fn info(&self) -> String {
-        match self{
-            Error::MissingInput => "no input files".to_string(),
-            Error::FileNotFound(name) => name.clone(),
-            _ => "".to_string(),
-        }
-    }
-
-    fn level(&self) -> ReportLevel {
-        match self{
-            Self::MissingInput => ReportLevel::Error(ErrorKind::NoInfoError),
-            Self::FileNotFound(_) => ReportLevel::Error(ErrorKind::SimpleError("file not found".to_string())),
-            _ => ReportLevel::Error(ErrorKind::SimpleError("blah".to_string())),
-        }
-
-    }
-
-    fn help(&self) -> Option<&str> {
-        None
-    }
-
-    fn others(&self) -> Option<&dyn Report> {
-        None
-    }
-}
 fn main(){
     let args = Arguments::parse();
     if args.file_names.is_empty(){
@@ -74,15 +42,14 @@ fn main(){
             None
         },
     };
-    let mut parser = Parser::new(Cursor::new("112E+0.1"), "file.tc".to_string(), None);
+    let mut parser = Parser::new(file.unwrap(),args.file_names[0].clone(),args.debug);
     match parser.parse(){
         Ok(()) => {},
         Err(e) => handle_error(e),
     }
-    // let parser = Parser::new(file.unwrap(),args.file_names[0].clone(),args.debug);
 }
 
-fn handle_error<T: Report + Diagnostic + fmt::Display>(error: T){
+fn handle_error<T: Report + Diagnostic + Display>(error: T){
     println!("{}",error);
     exit(1);
 }
