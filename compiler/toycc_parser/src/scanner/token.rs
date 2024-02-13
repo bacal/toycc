@@ -153,9 +153,9 @@ impl Display for Delimiter{
     }
 }
 
-impl<'a> Into<(&'a str, &'a str)> for Delimiter{
-    fn into(self) -> (&'a str, &'a str) {
-        match self{
+impl<'a> From<Delimiter> for (&'a str, &'a str){
+    fn from(value: Delimiter) -> Self {
+        match value{
             Delimiter::LParen => ("LPAREN","("),
             Delimiter::RParen => ("RPAREN",")"),
             Delimiter::LCurly => ("LCURLY","{"),

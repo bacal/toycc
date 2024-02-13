@@ -6,7 +6,7 @@ use syn::{parse_macro_input, DeriveInput};
 #[proc_macro_derive(Report)]
 pub fn derive_report(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
-    let mut input = parse_macro_input!(input as DeriveInput);
+    let input = parse_macro_input!(input as DeriveInput);
 
     let name = input.ident;
 

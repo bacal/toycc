@@ -4,7 +4,6 @@ use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
 pub enum Error{
     MissingInput,
     FileNotFound(String),
-    Nothing,
 }
 
 impl Diagnostic for Error{
@@ -13,7 +12,6 @@ impl Diagnostic for Error{
         match self{
             Error::MissingInput => "no input files".to_string(),
             Error::FileNotFound(name) => name.clone(),
-            _ => "".to_string(),
         }
     }
 
@@ -21,7 +19,6 @@ impl Diagnostic for Error{
         match self{
             Self::MissingInput => ReportLevel::Error(ErrorKind::NoInfoError),
             Self::FileNotFound(_) => ReportLevel::Error(ErrorKind::SimpleError("file not found".to_string())),
-            _ => ReportLevel::Error(ErrorKind::SimpleError("blah".to_string())),
         }
 
     }

@@ -3,7 +3,6 @@ mod error;
 use std::fmt::Display;
 use std::fs::File;
 use std::process::exit;
-use std::string::ToString;
 use clap::Parser as Clap_Parser;
 use toycc_parser::Parser;
 use toycc_report::{Diagnostic, Report};
