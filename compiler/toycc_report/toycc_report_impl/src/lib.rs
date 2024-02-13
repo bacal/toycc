@@ -27,7 +27,8 @@ pub fn derive_report(input: TokenStream) -> TokenStream {
                     d = c.others();
                 }
                 buffer + &*match self.level(){
-                    ReportLevel::Warning(_) => format!("{}","warning".bright_magenta().bold()),
+                    ReportLevel::Info => format!("toycc: {}",self.info().white().bold()),
+                    ReportLevel::Warning(_) => format!("toycc: {}","warning".bright_magenta().bold()),
                     ReportLevel::Error(e) => {
                         let level = "error".red().bold();
                         match e{

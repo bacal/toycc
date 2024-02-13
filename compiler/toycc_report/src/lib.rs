@@ -15,7 +15,8 @@ pub enum WarningKind{
 
 pub enum ReportLevel{
     Warning(WarningKind),
-    Error(ErrorKind)
+    Error(ErrorKind),
+    Info,
 }
 
 pub trait Diagnostic{
