@@ -8,10 +8,10 @@ categories = ["compilers"]
 [workspace]
 members = [
     "compiler/toycc_report",
-    "compiler/toycc_parser"]
+    "compiler/toycc_frontend"]
 
 [dependencies]
 clap = { version = "4.5.0", features = ["derive"] }
 colored = "2.1.0"
-toycc_parser = {path = "compiler/toycc_parser"}
+toycc_parser = {path = "compiler/toycc_frontend" }
 toycc_report = {path = "compiler/toycc_report"}
