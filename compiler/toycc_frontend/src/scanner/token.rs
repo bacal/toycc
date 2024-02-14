@@ -45,7 +45,7 @@ pub enum Delimiter{
 }
 
 #[derive(Debug,Clone, PartialEq)]
-pub enum Token{
+pub enum TokenKind{
     Keyword(Keyword),
     Identifier(String),
     Number(f64),
@@ -59,6 +59,26 @@ pub enum Token{
     Eof,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token{
+    kind: TokenKind,
+    len: usize,
+}
+
+impl Token{
+    pub fn new(kind: TokenKind, len: usize) -> Self{
+        Self{
+            kind,
+            len,
+        }
+    }
+}
+
+impl Display for Token{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f,"{}",self.kind)
+    }
+}
 impl Display for RelOP{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f,"{}",match self{
@@ -133,9 +153,9 @@ impl Display for Delimiter{
     }
 }
 
-impl<'a> Into<(&'a str, &'a str)> for Delimiter{
-    fn into(self) -> (&'a str, &'a str) {
-        match self{
+impl<'a> From<Delimiter> for (&'a str, &'a str){
+    fn from(value: Delimiter) -> Self {
+        match value{
             Delimiter::LParen => ("LPAREN","("),
             Delimiter::RParen => ("RPAREN",")"),
             Delimiter::LCurly => ("LCURLY","{"),
@@ -150,45 +170,46 @@ impl<'a> Into<(&'a str, &'a str)> for Delimiter{
     }
 }
 
-impl Display for Token{
+impl Display for TokenKind{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let opstr;
         let opstr2;
         let pair = match self{
-            Token::Keyword(keyword) => {
+            Self::Keyword(keyword) => {
                 opstr = keyword.to_string();
                 opstr2 = opstr.to_lowercase();
                 (opstr.as_str(), opstr.as_str())
             },
-            Token::Identifier(id) => ("ID",id.as_str()),
-            Token::Number(num) => {
+            Self::Identifier(id) => ("ID",id.as_str()),
+            Self::Number(num) => {
                 opstr = num.to_string();
                 ("NUMBER",opstr.as_str())
             },
-            Token::CharLiteral(c) => {
+            Self::CharLiteral(c) => {
                 opstr = format!("'{}'",c);
                 ("CHAR_LITERAL",opstr.as_str())
             },
-            Token::String(string) => {
+            Self::String(string) => {
                 opstr = format!("\"{}\"",string);
                 ("STRING",opstr.as_str())
             },
-            Token::RelOP(op) => {
+            Self::RelOP(op) => {
                 opstr = op.to_string();
                 ("RELOP",opstr.as_str())
             },
-            Token::MulOP(op) => {
+            Self::MulOP(op) => {
                 opstr = op.to_string();
                 ("MULOP",opstr.as_str())
             },
-            Token::AddOP(op) => {
+            Self::AddOP(op) => {
                 opstr = op.to_string();
                 ("ADDOP",opstr.as_str())
             },
-            Token::AssignOP => ("ASSIGNOP","="),
-            Token::Eof => ("EOF", "EOF"),
-            Token::Delimiter(del) => del.clone().into(),
+            Self::AssignOP => ("ASSIGNOP","="),
+            Self::Eof => ("EOF", "EOF"),
+            Self::Delimiter(del) => del.clone().into(),
         };
         write!(f,"(<{}>,\"{}\")",pair.0,pair.1)
     }
 }
+
