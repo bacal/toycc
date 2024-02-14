@@ -28,6 +28,7 @@ pub struct Scanner<S: Read> {
     position: usize,
     debug: Option<i32>,
     lines_read: usize,
+    comments_nested: usize,
 }
 
 impl<S: Read> Scanner<S>{
@@ -42,6 +43,7 @@ impl<S: Read> Scanner<S>{
             lines_read: 0,
             stream_name,
             previous_line: String::new(),
+            comments_nested: 0,
         }
     }
     pub fn get_char(&mut self) -> Option<char> {
@@ -146,6 +148,16 @@ impl<S: Read> Scanner<S>{
                     // }
                 }
 
+                // State::CommentStart =>{
+                //     match c{
+                //         '/' => {
+                //             self.next_line();
+                //             self.state = State::Initial;
+                //         }
+                //         '*' => self.change_state(State::MultiLineEat),
+                //         _ =>
+                //     }
+                // }
 
                 _ => {}
             }
@@ -161,6 +173,7 @@ impl<S: Read> Scanner<S>{
                 _ => println!("{token}")
             }
         }
+        self.state = State::Initial;
         token
     }
     fn create_error(&mut self, kind: ScannerErrorKind, len: usize, help: Option<String>) -> ScannerError{
