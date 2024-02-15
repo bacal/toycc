@@ -13,7 +13,7 @@ pub struct Parser<T: Read + Seek>{
 
 
 impl<T: Read + Seek> Parser<T>{
-    pub fn new(stream: T, stream_name: String, debug: Option<i32>) -> Self{
+    pub fn new(stream: T, stream_name: String, debug: Option<u32>) -> Self{
         Self{
             scanner: Scanner::new(stream,stream_name, debug)
         }

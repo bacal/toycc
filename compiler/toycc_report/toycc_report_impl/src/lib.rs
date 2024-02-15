@@ -21,15 +21,15 @@ pub fn derive_report(input: TokenStream) -> TokenStream {
                 use toycc_report::ErrorKind;
                 let mut buffer = String::new();
                 let mut d = self.others();
-                while let Some(c) = d{
-                    buffer+=c.message().as_str();
-                    buffer.push('\n');
-                    d = c.others();
-                }
-                buffer + &*match self.level(){
-                    ReportLevel::Info => format!("toycc: {}",self.info().white().bold()),
+
+                buffer += &*match self.level(){
+                    ReportLevel::Info => format!("{}: {}",self.info().white().bold(), self.help().unwrap_or("")),
                     ReportLevel::Warning(_) => format!("toycc: {}","warning".bright_magenta().bold()),
                     ReportLevel::Error(e) => {
+                        let help = match self.help(){
+                            Some(msg) => format!("\n{}",msg),
+                            None => "".to_string(),
+                        };
                         let level = "error".red().bold();
                         match e{
                             ErrorKind::ParsingError {file_name, pos, len, source} => {
@@ -37,10 +37,6 @@ pub fn derive_report(input: TokenStream) -> TokenStream {
                                     0 => "".to_owned(),
                                     1 => format!("{}^"," ".repeat(pos.1-1)),
                                     len => format!("{}^\n{}{}"," ".repeat(pos.1-1), " ".repeat(pos.1-1),"~".repeat(len-1 as usize)).bright_green().to_string(),
-                                };
-                                let help = match self.help(){
-                                    Some(msg) => format!("\n{}",msg),
-                                    None => "".to_string(),
                                 };
                                 format!("{}:{}:{}: {}: {}\n{}\n{}{}",file_name.white().bold(),
                                     pos.0.to_string().white().bold(),
@@ -54,7 +50,13 @@ pub fn derive_report(input: TokenStream) -> TokenStream {
                             ErrorKind::SimpleError(s) => format!("{}: {}: {}: {}","toycc".white().bold(), level, self.info().white().bold(), s.white().bold()),
                         }
                     },
+                };
+                while let Some(c) = d{
+                    buffer.push('\n');
+                    buffer+=c.message().as_str();
+                    d = c.others();
                 }
+                buffer
             }
         }
         impl #impl_generics fmt::Display for #name #ty_generics #where_clause{
