@@ -1,30 +1,33 @@
 pub mod error;
 
 use std::io::{Read, Seek};
+use std::sync::Arc;
 use crate::parser::error::ParserError;
 use crate::scanner::error::ScannerError;
 use crate::scanner::Scanner;
 use crate::scanner::token::Token;
 
 
-pub struct Parser<'a, S: Read + Seek + 'a>
-where &'a S: Read + Seek{
-    stream: &'a S,
-    scanner: Scanner<'a, S>,
+pub struct Parser<S: Read + Seek>
+where Arc<S>: Read + Seek
+{
+    stream: Arc<S>,
+    scanner: Scanner<S>,
 }
 
 
-impl<'a, S: Read + Seek> Parser<'a,S>
-where &'a S: Read + Seek
+impl<S: Read + Seek> Parser<S>
+where Arc<S>: Read + Seek
 {
-    pub fn new(stream: &'a S, stream_name: String, debug: Option<u32>) -> Self{
+    pub fn new(stream: Arc<S>, stream_name: String, debug: Option<u32>) -> Self{
         Self{
-            stream,
-            scanner: Scanner::new(stream, stream_name, debug)
+            stream: stream.clone(),
+            scanner: Scanner::new(stream.clone(), stream_name, debug)
         }
     }
 
     pub fn parse(&mut self)-> Result<(),ParserError>{
+        self.scanner.next_token()?;
         self.scanner.next_token()?;
         Ok(())
     }

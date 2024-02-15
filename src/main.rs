@@ -2,7 +2,9 @@ mod error;
 
 use std::fmt::{Display};
 use std::fs::File;
+use std::io::{stdout, Write};
 use std::process::exit;
+use std::sync::Arc;
 use colored::Colorize;
 use toycc_argparser::Arguments;
 use toycc_parser::Parser;
@@ -28,7 +30,7 @@ fn main(){
         },
     };
 
-    let mut parser = Parser::new(&file,args.file_names[0].clone(),args.debug);
+    let mut parser = Parser::new(Arc::new(file),args.file_names[0].clone(),args.debug);
     match parser.parse(){
         Ok(()) => {},
         Err(e) => handle_error(e),
@@ -36,5 +38,6 @@ fn main(){
 }
 
 fn handle_error<T: Report + Diagnostic + Display>(error: T){
+    stdout().flush();
     println!("{}",error);
 }

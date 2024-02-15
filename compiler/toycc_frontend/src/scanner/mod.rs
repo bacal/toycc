@@ -1,5 +1,6 @@
 use std::io::{BufRead, BufReader, Lines, Read, Seek};
 use std::iter::{Peekable};
+use std::sync::Arc;
 use toycc_report::{Diagnostic, Report};
 use crate::scanner::error::{ScannerError, ScannerErrorKind};
 use crate::scanner::token::{Keyword, Token, TokenKind};
@@ -19,35 +20,37 @@ enum State{
     Assign,
 }
 
-pub struct Scanner<'a, S>
-where &'a S: Read + Seek
+pub struct Scanner<S>
+where Arc<S>: Read + Seek,
 {
     stream_name: String,
+    stream: Arc<S>,
     buffer: String,
     state: State,
-    previous_line: String,
-    lines: Peekable<Lines<BufReader<&'a S>>>,
+    lines: Peekable<Lines<BufReader<Arc<S>>>>,
     position: usize,
     debug: Option<u32>,
     lines_read: usize,
     comments_nested: usize,
+    previous_location: (usize, usize),
 }
 
-impl<'a, S> Scanner<'a, S>
-where &'a S: Read + Seek
+impl<S> Scanner<S>
+where Arc<S>: Read + Seek
 {
 
-    pub fn new(stream: &'a S, stream_name: String, debug: Option<u32>) -> Self{
+    pub fn new(stream: Arc<S>, stream_name: String, debug: Option<u32>) -> Self{
         Self{
             debug,
+            stream: stream.clone(),
             state: State::Initial,
             lines: BufReader::new(stream).lines().peekable(),
             buffer: String::new(),
             position: 0,
             lines_read: 0,
             stream_name,
-            previous_line: String::new(),
             comments_nested: 0,
+            previous_location: (0, 0),
         }
     }
     pub fn get_char(&mut self) -> Option<char> {
@@ -61,10 +64,7 @@ where &'a S: Read + Seek
                             Some(c) => Some(c),
                             None => {
                                 self.next_line();
-                                match self.get_char(){
-                                    Some(c) => Some(c),
-                                    None => Some(' '),
-                                }
+                                Some('\n')
                             }
                         }
                     }
@@ -75,20 +75,23 @@ where &'a S: Read + Seek
         }
     }
     fn next_line(&mut self){
-        self.previous_line = self.lines.peek().unwrap().as_ref().unwrap().clone();
+        let prev_position = self.position;
         if let Some(mut line) = self.lines.next(){
             match &mut line{
                 Ok(data) => {
-                    if self.lines_read !=0{
-                        self.position = 0;
-                    }
+                    self.position = 0;
                     self.lines_read+=1;
                 }
                 Err(_) => panic!("io error"),
             }
         }
+        if self.lines.peek().is_none(){
+            self.position = prev_position;
+            self.lines_read -=1;
+        }
     }
     fn change_state(&mut self, state: State, c: char){
+        self.previous_location = (self.lines_read,self.position+1);
         self.push_char(c);
         self.state = state;
     }
@@ -107,6 +110,7 @@ where &'a S: Read + Seek
                     match c {
                         ('a'..='z') | ('A'..='Z') => self.change_state(State::Identifier,c),
                         ('0'..='9') => self.change_state(State::Integer,c),
+                        '\n' => {}
                         _ => return Err(self.create_error(ScannerErrorKind::IllegalCharacter(c),0,None)),
                     }
                 }
@@ -174,15 +178,22 @@ where &'a S: Read + Seek
         let token = Token::new(kind,len,(self.lines_read,self.position));
         if let Some(level) = self.debug{
             match level{
-                _ => println!("{token}")
+                _ => println!("[SCANNER] {token}")
             }
         }
+        self.previous_location = (self.lines_read, self.position+1);
         self.state = State::Initial;
         token
     }
     fn create_error(&mut self, kind: ScannerErrorKind, len: usize, help: Option<String>) -> ScannerError{
-        let line = self.lines.peek().unwrap_or(&Ok(self.previous_line.clone())).as_ref().unwrap().clone();
-        ScannerError::new(kind,line,(self.lines_read,self.position+1),len,self.stream_name.clone(),help)
+        let line = match kind{
+            ScannerErrorKind::MalformedNumber =>{
+                self.stream.rewind().unwrap();
+                BufReader::new(self.stream.clone()).lines().nth(self.previous_location.0).unwrap().unwrap()
+            }
+            _ => "".to_string()
+        };
+        ScannerError::new(kind,line,self.previous_location,len,self.stream_name.clone(),help)
     }
     fn keyword_or_id_token(&self, data: &str) -> Token{
         let kind = match data{
