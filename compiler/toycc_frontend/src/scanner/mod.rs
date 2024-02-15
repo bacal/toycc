@@ -1,6 +1,7 @@
 use std::io::{BufRead, BufReader, Lines, Read, Seek};
 use std::iter::{Peekable};
 use std::sync::Arc;
+use crate::BufferedStream;
 use crate::scanner::error::{ScannerError, ScannerErrorKind};
 use crate::scanner::token::{Keyword, Token, TokenKind};
 
@@ -19,14 +20,12 @@ enum State{
     Assign,
 }
 
-pub struct Scanner<S>
-where Arc<S>: Read + Seek,
+pub struct Scanner<'a, S: Read + Seek>
 {
-    stream_name: String,
-    stream: Arc<S>,
+    stream_name: &'a str,
+    pub stream: BufferedStream<S>,
     buffer: String,
     state: State,
-    lines: Peekable<Lines<BufReader<Arc<S>>>>,
     position: usize,
     debug: Option<u32>,
     lines_read: usize,
@@ -34,61 +33,51 @@ where Arc<S>: Read + Seek,
     previous_location: (usize, usize),
 }
 
-impl<S> Scanner<S>
-where Arc<S>: Read + Seek
+impl<'a, S: Read + Seek> Scanner<'a, S>
 {
 
-    pub fn new(stream: Arc<S>, stream_name: String, debug: Option<u32>) -> Self{
+    pub fn new(stream: BufferedStream<S>, stream_name: &'a str, debug: Option<u32>) -> Self{
         Self{
             debug,
-            stream: stream.clone(),
+            stream,
             state: State::Initial,
-            lines: BufReader::new(stream).lines().peekable(),
             buffer: String::new(),
-            position: 0,
             lines_read: 0,
-            stream_name,
             comments_nested: 0,
+            stream_name,
+            position: 0,
             previous_location: (0, 0),
         }
     }
     pub fn get_char(&mut self) -> Option<char> {
         // Return next character in line
         // Buffer new if line is empty
-        match &mut self.lines.peek(){
+        match &mut self.stream.peek(){
             Some(line) =>{
-                match line{
-                    Ok(line) => {
-                        match line.chars().nth(self.position){
-                            Some(c) => Some(c),
-                            None => {
-                                self.next_line();
-                                Some('\n')
-                            }
-                        }
+                match line.chars().nth(self.position){
+                    Some(c) => Some(c),
+                    None => {
+                        self.next_line();
+                        Some('\n')
                     }
-                    Err(_) => panic!("io error")
                 }
             },
             None => None,
         }
     }
+
     fn next_line(&mut self){
         let prev_position = self.position;
-        if let Some(mut line) = self.lines.next(){
-            match &mut line{
-                Ok(_) => {
-                    self.position = 0;
-                    self.lines_read+=1;
-                }
-                Err(_) => panic!("io error"),
-            }
+        if self.stream.next().is_some(){
+            self.lines_read+=1;
+            self.position =0;
         }
-        if self.lines.peek().is_none(){
+        if self.stream.peek().is_none(){
             self.position = prev_position;
             self.lines_read -=1;
         }
     }
+
     fn change_state(&mut self, state: State, c: char){
         self.previous_location = (self.lines_read,self.position+1);
         self.push_char(c);
@@ -109,7 +98,7 @@ where Arc<S>: Read + Seek
                     match c {
                         ('a'..='z') | ('A'..='Z') => self.change_state(State::Identifier,c),
                         ('0'..='9') => self.change_state(State::Integer,c),
-                        '\n' => {}
+                        '\n' => {},
                         _ => return Err(self.create_error(ScannerErrorKind::IllegalCharacter(c),0,None)),
                     }
                 }
@@ -117,7 +106,7 @@ where Arc<S>: Read + Seek
                 State::Identifier => {
                     match c{
                         ('a'..='z') | ('A'..='Z') | ('0'..='9') => self.push_char(c),
-                        _ => return Ok(self.keyword_or_id_token(self.buffer.as_str()))
+                        _ => return Ok(self.keyword_or_id_token())
                     }
                 }
 
@@ -135,7 +124,8 @@ where Arc<S>: Read + Seek
                 State::Sign => {
                     match c{
                         '+' | '-' => self.change_state(State::Exponent,c),
-                        _ => return  Err(self.create_error(ScannerErrorKind::MalformedNumber,1, Some("expected + or -".to_string())))
+                        _ => return  Err(self.create_error(ScannerErrorKind::MalformedNumber,1,
+                                                           Some("expected + or -".to_string())))
                     }
                 }
 
@@ -144,7 +134,8 @@ where Arc<S>: Read + Seek
                         ('0'..='9') => self.push_char(c),
                         _ => return match self.buffer.parse::<f64>(){
                             Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
-                            Err(_) =>   Err(self.create_error(ScannerErrorKind::MalformedNumber,1, Some("expected digit".to_string())))
+                            Err(_) =>   Err(self.create_error(ScannerErrorKind::MalformedNumber,1,
+                                                              Some("expected digit".to_string())))
                         }
                     }
                 }
@@ -180,35 +171,39 @@ where Arc<S>: Read + Seek
         }
         self.previous_location = (self.lines_read, self.position+1);
         self.state = State::Initial;
+        self.position+=1;
         token
     }
     fn create_error(&mut self, kind: ScannerErrorKind, len: usize, help: Option<String>) -> ScannerError{
+        let location = (self.previous_location.0,self.previous_location.1+1);
         let line = match kind{
             ScannerErrorKind::MalformedNumber =>{
-                self.stream.rewind().unwrap();
-                BufReader::new(self.stream.clone()).lines().nth(self.previous_location.0).unwrap().unwrap()
+                self.stream.rewind();
+                self.stream.nth(location.0-1).unwrap()
             }
             _ => "".to_string()
         };
-        ScannerError::new(kind,line,self.previous_location,len,self.stream_name.clone(),help)
+        ScannerError::new(kind,line,location,len,self.stream_name.to_string(),help)
     }
-    fn keyword_or_id_token(&self, data: &str) -> Token{
-        let kind = match data{
+    fn keyword_or_id_token(&mut self) -> Token{
+        let kind = match self.buffer.as_str(){
             "int" => TokenKind::Keyword(Keyword::Int),
-            _ => TokenKind::Identifier(data.to_owned()),
+            id => TokenKind::Identifier(id.to_string()),
         };
-        Token::new(kind, data.len(),(self.lines_read,self.position))
+        self.create_token(kind,self.buffer.len())
     }
 }
 
 
 #[cfg(test)]
 mod test_integration{
-    use super::*;
+    use std::io::Cursor;
+    use crate::BufferedStream;
+    use super::Scanner;
     #[test]
     fn test_scanner() {
         let data = "232E1 a\n int b";
-        let mut scanner = Scanner::new(data.as_bytes(), "name.tc".to_string(),None);
+        let mut scanner = Scanner::new(BufferedStream::new(Cursor::new(data.as_bytes())), "name.tc",None);
         let t = scanner.next_token();
 
         println!("{}",t.err().unwrap());

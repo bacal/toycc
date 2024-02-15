@@ -3,7 +3,6 @@ mod error;
 use std::fmt::{Display};
 use std::fs::File;
 use std::process::exit;
-use std::sync::Arc;
 
 use toycc_argparser::Arguments;
 use toycc_parser::Parser;
@@ -19,17 +18,18 @@ fn main(){
         exit(0);
     }
     if args.file_names.is_empty(){
-        handle_error(Error::MissingInput)
+        handle_error(Error::MissingInput);
+        exit(1);
     }
     let file = match File::open(&args.file_names[0]){
         Ok(file) => file,
         Err(_) => {
             handle_error(Error::FileNotFound(args.file_names[0].clone()));
-            exit(1);
+            return ()
         },
     };
 
-    let mut parser = Parser::new(Arc::new(file),args.file_names[0].clone(),args.debug);
+    let mut parser = Parser::new(&file,args.file_names[0].as_str(),args.debug);
     match parser.parse(){
         Ok(()) => {},
         Err(e) => handle_error(e),
