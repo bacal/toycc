@@ -1,28 +1,25 @@
 pub mod error;
 
 use std::io::{Read, Seek};
-use std::sync::Arc;
+use std::ops::Deref;
+use crate::BufferedStream;
 use crate::parser::error::ParserError;
 use crate::scanner::error::ScannerError;
 use crate::scanner::Scanner;
 use crate::scanner::token::Token;
 
-
-pub struct Parser<S: Read + Seek>
-where Arc<S>: Read + Seek
-{
-    stream: Arc<S>,
-    scanner: Scanner<S>,
+pub struct Parser<'a, S: Read + Seek>{
+    scanner: Scanner<'a, S>,
+    debug: Option<u32>
 }
 
 
-impl<S: Read + Seek> Parser<S>
-where Arc<S>: Read + Seek
+impl<'a, S: Read + Seek> Parser<'a, S>
 {
-    pub fn new(stream: Arc<S>, stream_name: String, debug: Option<u32>) -> Self{
+    pub fn new(stream: S, file_name: &'a str, debug: Option<u32>) -> Self{
         Self{
-            stream: stream.clone(),
-            scanner: Scanner::new(stream.clone(), stream_name, debug)
+            scanner: Scanner::new(BufferedStream::new(stream),file_name,debug),
+            debug
         }
     }
 
