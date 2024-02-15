@@ -26,14 +26,14 @@ pub struct Scanner<S: Read> {
     previous_line: String,
     lines: Peekable<Lines<BufReader<S>>>,
     position: usize,
-    debug: Option<i32>,
+    debug: Option<u32>,
     lines_read: usize,
     comments_nested: usize,
 }
 
 impl<S: Read> Scanner<S>{
 
-    pub fn new(stream: S, stream_name: String, debug: Option<i32>) -> Self{
+    pub fn new(stream: S, stream_name: String, debug: Option<u32>) -> Self{
         Self{
             debug,
             state: State::Initial,
@@ -110,7 +110,7 @@ impl<S: Read> Scanner<S>{
                 State::Identifier => {
                     match c{
                         ('a'..='z') | ('A'..='Z') | ('0'..='9') => self.push_char(c),
-                        _ => return Ok(keyword_or_id_token(self.buffer.as_str()))
+                        _ => return Ok(self.keyword_or_id_token(self.buffer.as_str()))
                     }
                 }
 
@@ -163,11 +163,11 @@ impl<S: Read> Scanner<S>{
             }
         }
         // When we run out of data in our source stream we return the EOF token
-        Ok(Token::new(TokenKind::Eof,0))
+        Ok(Token::new(TokenKind::Eof,0,(self.lines_read,self.position)))
     }
 
     pub fn create_token(&mut self, kind: TokenKind, len: usize) -> Token{
-        let token = Token::new(kind,len);
+        let token = Token::new(kind,len,(self.lines_read,self.position));
         if let Some(level) = self.debug{
             match level{
                 _ => println!("{token}")
@@ -180,15 +180,15 @@ impl<S: Read> Scanner<S>{
         let line = self.lines.peek().unwrap_or(&Ok(self.previous_line.clone())).as_ref().unwrap().clone();
         ScannerError::new(kind,line,(self.lines_read,self.position+1),len,self.stream_name.clone(),help)
     }
+    fn keyword_or_id_token(&self, data: &str) -> Token{
+        let kind = match data{
+            "int" => TokenKind::Keyword(Keyword::Int),
+            _ => TokenKind::Identifier(data.to_owned()),
+        };
+        Token::new(kind, data.len(),(self.lines_read,self.position))
+    }
 }
 
-fn keyword_or_id_token(data: &str) -> Token{
-    let kind = match data{
-        "int" => TokenKind::Keyword(Keyword::Int),
-        _ => TokenKind::Identifier(data.to_owned()),
-    };
-    Token::new(kind, data.len())
-}
 
 #[cfg(test)]
 mod test_integration{
