@@ -2,10 +2,9 @@ mod error;
 
 use std::fmt::{Display};
 use std::fs::File;
-use std::io::{stdout, Write};
 use std::process::exit;
 use std::sync::Arc;
-use colored::Colorize;
+
 use toycc_argparser::Arguments;
 use toycc_parser::Parser;
 use toycc_report::{Diagnostic, Report};
@@ -38,6 +37,5 @@ fn main(){
 }
 
 fn handle_error<T: Report + Diagnostic + Display>(error: T){
-    stdout().flush();
     println!("{}",error);
 }

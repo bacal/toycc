@@ -1,7 +1,6 @@
 use std::io::{BufRead, BufReader, Lines, Read, Seek};
 use std::iter::{Peekable};
 use std::sync::Arc;
-use toycc_report::{Diagnostic, Report};
 use crate::scanner::error::{ScannerError, ScannerErrorKind};
 use crate::scanner::token::{Keyword, Token, TokenKind};
 
@@ -78,7 +77,7 @@ where Arc<S>: Read + Seek
         let prev_position = self.position;
         if let Some(mut line) = self.lines.next(){
             match &mut line{
-                Ok(data) => {
+                Ok(_) => {
                     self.position = 0;
                     self.lines_read+=1;
                 }
@@ -176,10 +175,8 @@ where Arc<S>: Read + Seek
 
     pub fn create_token(&mut self, kind: TokenKind, len: usize) -> Token{
         let token = Token::new(kind,len,(self.lines_read,self.position));
-        if let Some(level) = self.debug{
-            match level{
-                _ => println!("[SCANNER] {token}")
-            }
+        if self.debug.is_some(){
+            println!("[SCANNER] {token}")
         }
         self.previous_location = (self.lines_read, self.position+1);
         self.state = State::Initial;

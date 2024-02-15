@@ -174,38 +174,38 @@ impl<'a> From<Delimiter> for (&'a str, &'a str){
 
 impl Display for TokenKind{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let opstr;
-        let opstr2;
+        let _buf1;
+        let _buf2;
         let pair = match self{
             Self::Keyword(keyword) => {
-                opstr = keyword.to_string();
-                opstr2 = opstr.to_lowercase();
-                (opstr.as_str(), opstr.as_str())
+                _buf1 = keyword.to_string();
+                _buf2 = _buf1.to_lowercase();
+                (_buf1.as_str(), _buf1.as_str())
             },
             Self::Identifier(id) => ("ID",id.as_str()),
             Self::Number(num) => {
-                opstr = num.to_string();
-                ("NUMBER",opstr.as_str())
+                _buf1 = num.to_string();
+                ("NUMBER", _buf1.as_str())
             },
             Self::CharLiteral(c) => {
-                opstr = format!("'{}'",c);
-                ("CHAR_LITERAL",opstr.as_str())
+                _buf1 = format!("'{}'", c);
+                ("CHAR_LITERAL", _buf1.as_str())
             },
             Self::String(string) => {
-                opstr = format!("\"{}\"",string);
-                ("STRING",opstr.as_str())
+                _buf1 = format!("\"{}\"", string);
+                ("STRING", _buf1.as_str())
             },
             Self::RelOP(op) => {
-                opstr = op.to_string();
-                ("RELOP",opstr.as_str())
+                _buf1 = op.to_string();
+                ("RELOP", _buf1.as_str())
             },
             Self::MulOP(op) => {
-                opstr = op.to_string();
-                ("MULOP",opstr.as_str())
+                _buf1 = op.to_string();
+                ("MULOP", _buf1.as_str())
             },
             Self::AddOP(op) => {
-                opstr = op.to_string();
-                ("ADDOP",opstr.as_str())
+                _buf1 = op.to_string();
+                ("ADDOP", _buf1.as_str())
             },
             Self::AssignOP => ("ASSIGNOP","="),
             Self::Eof => ("EOF", "EOF"),

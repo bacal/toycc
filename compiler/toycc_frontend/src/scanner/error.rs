@@ -36,7 +36,7 @@ impl Diagnostic for ScannerError{
     fn info(&self) -> String {
         match &self.kind{
             ScannerErrorKind::IllegalCharacter(c) => format!("illegal character: '{}'",c.escape_debug()),
-            ScannerErrorKind::MalformedNumber =>  <Option<String> as Clone>::clone(&(&self.help)).unwrap_or(String::new())
+            ScannerErrorKind::MalformedNumber =>  <Option<String> as Clone>::clone(&self.help).unwrap_or_default()
         }
     }
 

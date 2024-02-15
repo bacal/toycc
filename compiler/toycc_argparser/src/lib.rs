@@ -5,8 +5,8 @@ use colored::Colorize;
 use itertools::Itertools;
 use crate::error::ArgumentParseError;
 
-const USAGE: &'static str = r"toycc [options] [input]...";
-const OPTIONS: &'static str = r#"
+const USAGE: &str = r"toycc [options] [input]...";
+const OPTIONS:  &str = r#"
   -debug <level>  Display messages that aid in tracing the compilation process.
                        0 - all messages
                        1 - scanner messages only
@@ -36,7 +36,7 @@ enum Argument{
 enum Token{
     Argument(Argument),
     Number(u32),
-    EOS,
+    Eos,
 }
 
 enum ScannerState{
@@ -45,9 +45,6 @@ enum ScannerState{
     Number,
     Positional,
 }
-
-struct ArgumentParser;
-
 
 impl Arguments{
     pub fn print_usage(){
@@ -79,7 +76,7 @@ impl Arguments{
                 Token::Argument(Argument::Verbose) => args.verbose = true,
                 Token::Argument(Argument::Help) => args.help = true,
                 Token::Argument(Argument::Positional(s)) => args.file_names.push(s.clone()),
-                Token::EOS =>{},
+                Token::Eos =>{},
                 Token::Number(n) =>  args.file_names.push(n.to_string()),
             }
         }
@@ -142,7 +139,7 @@ fn scan_tokens(input: &str) -> Result<Vec<Token>,ArgumentParseError>{
 
         }
     }
-    tokens.push(Token::EOS);
+    tokens.push(Token::Eos);
     Ok(tokens)
 }
 
@@ -152,20 +149,20 @@ mod scanner_tests{
 
     #[test]
     fn test_help(){
-       assert_eq!(scan_tokens("-help 2"), Ok(vec![Token::Argument(Argument::Help),Token::Number(2),Token::EOS]))
+       assert_eq!(scan_tokens("-help 2"), Ok(vec![Token::Argument(Argument::Help),Token::Number(2),Token::Eos]))
     }
 
     #[test]
     fn test_debug(){
         assert_eq!(scan_tokens("2 -debug 2"),
-                   Ok(vec![Token::Number(2), Token::Argument(Argument::Debug),Token::Number(2),Token::EOS]))
+                   Ok(vec![Token::Number(2), Token::Argument(Argument::Debug),Token::Number(2),Token::Eos]))
     }
 
     #[test]
     fn test_positional(){
         assert_eq!(scan_tokens("2a.c -debug 2"),
                    Ok(vec![Token::Argument(Argument::Positional("2a.c".to_string())),
-                           Token::Argument(Argument::Debug),Token::Number(2),Token::EOS]))
+                           Token::Argument(Argument::Debug),Token::Number(2),Token::Eos]))
     }
 
     #[test]
@@ -174,7 +171,7 @@ mod scanner_tests{
                    Ok(vec![Token::Argument(Argument::Positional("2a.c".to_string())),
                            Token::Argument(Argument::Debug),
                            Token::Argument(Argument::Positional("a223.c".to_string())),
-                           Token::EOS]))
+                           Token::Eos]))
     }
 }
 
