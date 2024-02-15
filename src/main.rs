@@ -21,13 +21,14 @@ fn main(){
         handle_error(Error::MissingInput)
     }
     let file = match File::open(&args.file_names[0]){
-        Ok(file) => Some(file),
+        Ok(file) => file,
         Err(_) => {
             handle_error(Error::FileNotFound(args.file_names[0].clone()));
-            None
+            exit(1);
         },
     };
-    let mut parser = Parser::new(file.unwrap(),args.file_names[0].clone(),args.debug);
+
+    let mut parser = Parser::new(&file,args.file_names[0].clone(),args.debug);
     match parser.parse(){
         Ok(()) => {},
         Err(e) => handle_error(e),
@@ -36,5 +37,4 @@ fn main(){
 
 fn handle_error<T: Report + Diagnostic + Display>(error: T){
     println!("{}",error);
-    exit(1);
 }

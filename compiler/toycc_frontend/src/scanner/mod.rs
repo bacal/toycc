@@ -19,21 +19,25 @@ enum State{
     Assign,
 }
 
-pub struct Scanner<S: Read> {
+pub struct Scanner<'a, S>
+where &'a S: Read + Seek
+{
     stream_name: String,
     buffer: String,
     state: State,
     previous_line: String,
-    lines: Peekable<Lines<BufReader<S>>>,
+    lines: Peekable<Lines<BufReader<&'a S>>>,
     position: usize,
     debug: Option<u32>,
     lines_read: usize,
     comments_nested: usize,
 }
 
-impl<S: Read> Scanner<S>{
+impl<'a, S> Scanner<'a, S>
+where &'a S: Read + Seek
+{
 
-    pub fn new(stream: S, stream_name: String, debug: Option<u32>) -> Self{
+    pub fn new(stream: &'a S, stream_name: String, debug: Option<u32>) -> Self{
         Self{
             debug,
             state: State::Initial,

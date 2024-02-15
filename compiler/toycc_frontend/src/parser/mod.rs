@@ -7,15 +7,20 @@ use crate::scanner::Scanner;
 use crate::scanner::token::Token;
 
 
-pub struct Parser<T: Read + Seek>{
-    scanner: Scanner<T>,
+pub struct Parser<'a, S: Read + Seek + 'a>
+where &'a S: Read + Seek{
+    stream: &'a S,
+    scanner: Scanner<'a, S>,
 }
 
 
-impl<T: Read + Seek> Parser<T>{
-    pub fn new(stream: T, stream_name: String, debug: Option<u32>) -> Self{
+impl<'a, S: Read + Seek> Parser<'a,S>
+where &'a S: Read + Seek
+{
+    pub fn new(stream: &'a S, stream_name: String, debug: Option<u32>) -> Self{
         Self{
-            scanner: Scanner::new(stream,stream_name, debug)
+            stream,
+            scanner: Scanner::new(stream, stream_name, debug)
         }
     }
 
