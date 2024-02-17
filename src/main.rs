@@ -17,16 +17,16 @@ fn main(){
         Arguments::print_usage();
         exit(0);
     }
+    if args.authors{
+        Arguments::print_authors();
+        exit(0)
+    }
     if args.file_names.is_empty(){
         handle_error(Error::MissingInput);
-        exit(1);
     }
     let file = match File::open(&args.file_names[0]){
         Ok(file) => file,
-        Err(_) => {
-            handle_error(Error::FileNotFound(args.file_names[0].clone()));
-            return ()
-        },
+        Err(_) => handle_error(Error::FileNotFound(args.file_names[0].clone())),
     };
 
     let mut parser = Parser::new(&file,args.file_names[0].as_str(),args.debug);
@@ -36,6 +36,7 @@ fn main(){
     }
 }
 
-fn handle_error<T: Report + Diagnostic + Display>(error: T){
+fn handle_error<T: Report + Diagnostic + Display>(error: T) -> !{
     println!("{}",error);
+    exit(1)
 }

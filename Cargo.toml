@@ -4,6 +4,7 @@ authors = ["Bacal Mesfin <mesfinb2@vcu.edu>", ""]
 version = "0.1.0"
 edition = "2021"
 categories = ["compilers"]
+description = "ToyC Compiler for EGRE591 (SPRING 2024)"
 
 [workspace]
 members = [
