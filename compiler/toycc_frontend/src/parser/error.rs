@@ -25,9 +25,9 @@ impl Diagnostic for ParserError{
         }
     }
 
-    fn help(&self) -> Option<&str> {
+    fn help(&self) -> Option<String> {
         match self{
-            ParserError::ScannerError(s) => s.help()
+            ParserError::ScannerError(s) => s.help().to_owned()
         }
     }
 

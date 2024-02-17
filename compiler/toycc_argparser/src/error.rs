@@ -26,9 +26,9 @@ impl Diagnostic for ArgumentParseError{
         }
     }
 
-    fn help(&self) -> Option<&str> {
+    fn help(&self) -> Option<String> {
         match self{
-            Self::Usage(usage) => Some(usage),
+            Self::Usage(usage) => Some(usage.to_string()),
             _ => None,
         }
     }

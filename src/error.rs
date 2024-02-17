@@ -23,7 +23,7 @@ impl Diagnostic for Error{
 
     }
 
-    fn help(&self) -> Option<&str> {
+    fn help(&self) -> Option<String> {
         None
     }
 
