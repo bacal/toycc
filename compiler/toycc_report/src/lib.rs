@@ -22,7 +22,7 @@ pub enum ReportLevel{
 pub trait Diagnostic{
     fn info(&self) -> String;
     fn level(&self) -> ReportLevel;
-    fn help(&self) -> Option<&str>;
+    fn help(&self) -> Option<String>;
     fn others(&self) -> Option<&dyn Report>;
 }
 

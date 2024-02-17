@@ -23,27 +23,29 @@ pub fn derive_report(input: TokenStream) -> TokenStream {
                 let mut d = self.others();
 
                 buffer += &*match self.level(){
-                    ReportLevel::Info => format!("{}: {}",self.info().white().bold(), self.help().unwrap_or("")),
+                    ReportLevel::Info => format!("{}: {}",self.info().white().bold(), self.help().unwrap_or_default()),
                     ReportLevel::Warning(_) => format!("toycc: {}","warning".bright_magenta().bold()),
                     ReportLevel::Error(e) => {
-                        let help = match self.help(){
-                            Some(msg) => format!("\n{}",msg),
-                            None => "".to_string(),
-                        };
                         let level = "error".red().bold();
                         match e{
                             ErrorKind::ParsingError {file_name, pos, len, source} => {
+                                let spaces = " ".repeat(pos.1-1);
+                                let help = match self.help(){
+                                    Some(s) => format!("\n{spaces}{s}"),
+                                    None => "".to_string()
+                                };
                                 let tail = match len {
                                     0 => "".to_owned(),
-                                    1 => format!("{}^"," ".repeat(pos.1-1)),
-                                    len => format!("{}^\n{}{}"," ".repeat(pos.1-1), " ".repeat(pos.1-1),"~".repeat(len-1 as usize)).bright_green().to_string(),
+                                    1 => format!("{}^",spaces),
+                                    len => format!("{}^\n{}{}",spaces,spaces,"~".repeat(len-1 as usize)).bright_green().to_string(),
                                 };
-                                format!("{}:{}:{}: {}: {}\n{}\n{}{}",file_name.white().bold(),
+                                format!("{}:{}:{}: {}: {}\n{}\n{}{}{}",file_name.white().bold(),
                                     pos.0.to_string().white().bold(),
                                     pos.1.to_string().white().bold(),
                                     level,
                                     self.info().white().bold(),
                                     source, tail.bright_green(),
+                                    spaces,
                                     help.bright_green())
                             },
                             ErrorKind::NoInfoError => format!("{}: {}: {}","toycc".white().bold(), level, self.info().white().bold()),

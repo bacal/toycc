@@ -117,15 +117,16 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                         '.' => self.change_state(State::Float,c),
                         _ => return match self.buffer.parse::<f64>(){
                             Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
-                            Err(_) =>  Err(self.create_error(ScannerErrorKind::MalformedNumber,1, None))
+                            Err(_) =>  Err(self.create_error(ScannerErrorKind::MalformedNumber(format!("invalid number {}",self.buffer)),1, None))
                         }
                     }
                 }
                 State::Sign => {
                     match c{
                         '+' | '-' => self.change_state(State::Exponent,c),
-                        _ => return  Err(self.create_error(ScannerErrorKind::MalformedNumber,1,
-                                                           Some("expected + or -".to_string())))
+                        _ => return  Err(self.create_error(
+                            ScannerErrorKind::MalformedNumber("exponent missing sign".to_string()),
+                            1, Some("expected + or -".to_string())))
                     }
                 }
 
@@ -134,8 +135,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                         ('0'..='9') => self.push_char(c),
                         _ => return match self.buffer.parse::<f64>(){
                             Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
-                            Err(_) =>   Err(self.create_error(ScannerErrorKind::MalformedNumber,1,
-                                                              Some("expected digit".to_string())))
+                            Err(_) =>   Err(self.create_error(ScannerErrorKind::MalformedNumber("exponent has no digits".to_string()),1, None))
                         }
                     }
                 }
@@ -177,7 +177,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
     fn create_error(&mut self, kind: ScannerErrorKind, len: usize, help: Option<String>) -> ScannerError{
         let location = (self.previous_location.0,self.previous_location.1+1);
         let line = match kind{
-            ScannerErrorKind::MalformedNumber =>{
+            ScannerErrorKind::MalformedNumber(_) =>{
                 self.stream.rewind();
                 self.stream.nth(location.0-1).unwrap()
             }
