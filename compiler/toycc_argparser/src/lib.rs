@@ -5,28 +5,29 @@ use colored::Colorize;
 use itertools::Itertools;
 use crate::error::ArgumentParseError;
 
+const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
+const DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
 const USAGE: &str = r"toycc [options] [input]...";
 const OPTIONS:  &str = r#"
   -debug <level>  Display messages that aid in tracing the compilation process.
                        0 - all messages
                        1 - scanner messages only
   -verbose        Display all information
-  -help           Print help
-  -version        Print version
-
-ToyC Compiler for EGRE591 (SPRING 2024)"#;
+  -help           Print help"#;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Arguments{
     pub help: bool,
+    pub authors: bool,
     pub debug: Option<u32>,
     pub verbose: bool,
-    pub file_names: Vec<String>
+    pub file_names: Vec<String>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 enum Argument{
     Help,
+    Authors,
     Debug,
     Verbose,
     Positional(String),
@@ -48,13 +49,26 @@ enum ScannerState{
 
 impl Arguments{
     pub fn print_usage(){
-        println!("{}: {USAGE}\n\n{}: {OPTIONS}","usage".white().bold(),"Options".white().bold());
+        println!("{}: {USAGE}\n\n{DESCRIPTION}\n\n{}\n\n{}: {OPTIONS}",
+                 "Usage".white().bold(),
+                 Self::authors_string(),
+                 "Options".white().bold());
+    }
+    fn authors_string() -> String{
+        let authors = AUTHORS.split(":")
+            .filter(|s| !s.contains("<"))
+            .join(", ");
+        format!("{}: {authors}","Authors".white().bold())
+    }
+    pub fn print_authors(){
+        println!("{}: {}","toycc".white().bold(),Self::authors_string())
     }
     pub fn parse() -> Result<Self, ArgumentParseError>{
 
         let input = args().skip(1).join(" ");
         let mut args = Arguments{
             help: false,
+            authors: false,
             debug: None,
             verbose: false,
             file_names: vec![],
@@ -73,6 +87,7 @@ impl Arguments{
                         _ => return Err(ArgumentParseError::MissingValue),
                     }
                 }
+                Token::Argument(Argument::Authors) => args.authors = true,
                 Token::Argument(Argument::Verbose) => args.verbose = true,
                 Token::Argument(Argument::Help) => args.help = true,
                 Token::Argument(Argument::Positional(s)) => args.file_names.push(s.clone()),
@@ -182,6 +197,7 @@ impl TryFrom<&str> for Argument{
             "debug" => Ok(Argument::Debug),
             "verbose" => Ok(Argument::Verbose),
             "help" => Ok(Argument::Help),
+            "authors" => Ok(Argument::Authors),
             _ => Err(ArgumentParseError::UnknownArgument(value.to_string())),
         }
     }
