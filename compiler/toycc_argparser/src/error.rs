@@ -1,5 +1,5 @@
 use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
-const DEBUG_USAGE : &'static str = r"-debug <level>  0 - all messages
+const DEBUG_USAGE : &str = r"-debug <level>  0 - all messages
                        1 - scanner messages only";
 #[derive(Report)]
 pub enum ArgumentParseError{
@@ -26,9 +26,9 @@ impl Diagnostic for ArgumentParseError{
         }
     }
 
-    fn help(&self) -> Option<&str> {
+    fn help(&self) -> Option<String> {
         match self{
-            Self::Usage(usage) => Some(usage),
+            Self::Usage(usage) => Some(usage.to_string()),
             _ => None,
         }
     }

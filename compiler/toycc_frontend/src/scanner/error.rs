@@ -3,7 +3,7 @@ use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
 #[derive(Debug, PartialEq)]
 pub enum ScannerErrorKind{
     IllegalCharacter(char),
-    MalformedNumber,
+    MalformedNumber(String),
 }
 
 #[derive(Debug, Report, PartialEq)]
@@ -35,8 +35,8 @@ impl ScannerError{
 impl Diagnostic for ScannerError{
     fn info(&self) -> String {
         match &self.kind{
-            ScannerErrorKind::IllegalCharacter(c) => format!("illegal character: '{c}'"),
-            ScannerErrorKind::MalformedNumber =>  <Option<String> as Clone>::clone(&(&self.help)).unwrap_or(String::new())
+            ScannerErrorKind::IllegalCharacter(c) => format!("illegal character: '{}'",c.escape_debug()),
+            ScannerErrorKind::MalformedNumber(c) =>  c.to_string()
         }
     }
 
@@ -49,10 +49,10 @@ impl Diagnostic for ScannerError{
         })
     }
 
-    fn help(&self) -> Option<&str> {
+    fn help(&self) -> Option<String> {
         match self.kind{
             ScannerErrorKind::IllegalCharacter(_) => None,
-            ScannerErrorKind::MalformedNumber => None,
+            ScannerErrorKind::MalformedNumber(_) => <Option<String> as Clone>::clone(&self.help),
         }
     }
 
