@@ -63,6 +63,7 @@ impl Arguments{
     pub fn print_authors(){
         println!("{}: {}","toycc".white().bold(),Self::authors_string())
     }
+
     pub fn parse() -> Result<Self, ArgumentParseError>{
 
         let input = args().skip(1).join(" ");

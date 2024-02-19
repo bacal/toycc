@@ -2,6 +2,7 @@ use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
 const DEBUG_USAGE : &str = r"-debug <level>  0 - all messages
                        1 - scanner messages only";
 #[derive(Report)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ArgumentParseError{
     UnknownArgument(String),
     InvalidDebug(u32),
