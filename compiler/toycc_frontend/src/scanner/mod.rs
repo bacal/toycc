@@ -110,15 +110,39 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                         '|' => self.change_state(State::Or, c),
                         '"' => self.change_state(State::String, c),
                         '\'' => self.change_state(State::CharLiteral, c),
-                        ';' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::Semicolon), 1)),
-                        '(' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1)),
-                        ')' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::RParen), 1)),
-                        '[' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LBracket), 1)),
-                        ']' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::RBracket), 1)),
-                        '{' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1)),
-                        '}' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1)),
-                        ':' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1)),
-                        ',' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1)),
+                        ';' => {
+                            return Ok(
+                                self.create_token(TokenKind::Delimiter(Delimiter::Semicolon), 1)
+                            )
+                        }
+                        '(' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))
+                        }
+                        ')' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::RParen), 1))
+                        }
+                        '[' => {
+                            return Ok(
+                                self.create_token(TokenKind::Delimiter(Delimiter::LBracket), 1)
+                            )
+                        }
+                        ']' => {
+                            return Ok(
+                                self.create_token(TokenKind::Delimiter(Delimiter::RBracket), 1)
+                            )
+                        }
+                        '{' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1))
+                        }
+                        '}' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1))
+                        }
+                        ':' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))
+                        }
+                        ',' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))
+                        }
                         _ => {
                             println!(
                                 "{}",
