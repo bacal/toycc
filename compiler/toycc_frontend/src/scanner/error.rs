@@ -1,4 +1,4 @@
-use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
+use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel, WarningKind};
 
 #[derive(Debug, PartialEq)]
 pub enum ScannerErrorKind {
@@ -10,7 +10,7 @@ pub enum ScannerErrorKind {
 
 #[derive(Debug, Report, PartialEq)]
 pub struct ScannerError {
-    kind: ScannerErrorKind,
+    pub kind: ScannerErrorKind,
     line: Option<String>,
     location: (usize, usize),
     len: usize,
@@ -51,12 +51,22 @@ impl Diagnostic for ScannerError {
     }
 
     fn level(&self) -> ReportLevel {
-        ReportLevel::Error(ErrorKind::ParsingError {
-            file_name: self.stream_name.clone(),
-            pos: self.location,
-            len: self.len,
-            source: self.line.clone(),
-        })
+        match self.kind {
+            ScannerErrorKind::IllegalCharacter(_) => {
+                ReportLevel::Warning(WarningKind::ParsingWarning {
+                    file_name: self.stream_name.clone(),
+                    pos: self.location,
+                    len: self.len,
+                    source: self.line.clone(),
+                })
+            }
+            _ => ReportLevel::Error(ErrorKind::ParsingError {
+                file_name: self.stream_name.clone(),
+                pos: self.location,
+                len: self.len,
+                source: self.line.clone(),
+            }),
+        }
     }
 
     fn help(&self) -> Option<String> {

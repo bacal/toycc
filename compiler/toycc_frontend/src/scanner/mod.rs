@@ -115,12 +115,40 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                                 self.create_token(TokenKind::Delimiter(Delimiter::Semicolon), 1)
                             )
                         }
+                        '(' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))
+                        }
+                        ')' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::RParen), 1))
+                        }
+                        '[' => {
+                            return Ok(
+                                self.create_token(TokenKind::Delimiter(Delimiter::LBracket), 1)
+                            )
+                        }
+                        ']' => {
+                            return Ok(
+                                self.create_token(TokenKind::Delimiter(Delimiter::RBracket), 1)
+                            )
+                        }
+                        '{' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1))
+                        }
+                        '}' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1))
+                        }
+                        ':' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))
+                        }
+                        ',' => {
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))
+                        }
                         _ => {
-                            return Err(self.create_error(
-                                ScannerErrorKind::IllegalCharacter(c),
-                                0,
-                                None,
-                            ))
+                            println!(
+                                "{}",
+                                self.create_error(ScannerErrorKind::IllegalCharacter(c), 0, None)
+                            );
+                            self.change_state(State::Initial, c);
                         }
                     }
                 }
@@ -354,7 +382,10 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
         len: usize,
         help: Option<String>,
     ) -> ScannerError {
-        let location = (self.previous_location.0, self.previous_location.1);
+        let location = match kind {
+            ScannerErrorKind::IllegalCharacter(_) => (self.lines_read, self.position + 1),
+            _ => self.previous_location,
+        };
         let line = match kind {
             ScannerErrorKind::MalformedNumber(_) => {
                 let _ = self.stream.rewind();
@@ -550,7 +581,7 @@ mod tests {
         const SAMPLE_DATA: &str = r#"int char return if else for
                                     do while switch case default write
                                     read continue break newline
-                                    a = 32; b = 32.; c7   =   99E+31"#;
+                                    a = 32; b = 32.0; c7   =   99E+31"#;
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
