@@ -61,9 +61,9 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                 Some(c) => Some(c),
                 None => {
                     self.next_line();
-                    match self.get_char(){
+                    match self.get_char() {
                         Some(c) => Some(c),
-                        None => Some('\n')
+                        None => Some('\n'),
                     }
                 }
             },
@@ -97,7 +97,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     match c {
                         ('a'..='z') | ('A'..='Z') => self.change_state(State::Identifier, c),
                         ('0'..='9') => self.change_state(State::Integer, c),
-                        ' ' |'\n' | '\t' => self.position += 1,
+                        ' ' | '\n' | '\t' => self.position += 1,
                         '<' | '>' | '!' | '=' => self.change_state(State::Relationship, c),
                         '*' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Multiply), 1)),
                         '%' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Mod), 1)),
@@ -130,8 +130,8 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     _ => {
                         return match self.buffer.parse::<f64>() {
                             Ok(num) => {
-                                if c != '\n'{
-                                    self.position-=1;
+                                if c != '\n' {
+                                    self.position -= 1;
                                 }
                                 Ok(self.create_token(TokenKind::Number(num), self.buffer.len()))
                             }
@@ -265,11 +265,13 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                             self.buffer.len() - 1,
                         ))
                     }
-                    '\n' => return Err(self.create_error(
+                    '\n' => {
+                        return Err(self.create_error(
                             ScannerErrorKind::InvalidStringLiteral,
                             self.buffer.len() - 1,
-                            Some("expected '\"'".to_string())
-                    )),
+                            Some("expected '\"'".to_string()),
+                        ))
+                    }
                     _ => self.push_char(c),
                 },
                 State::CharLiteral => match c {
@@ -293,12 +295,12 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     }
                     '\n' => {
                         self.push_char(c);
-                        if self.buffer.len() > 2{
+                        if self.buffer.len() > 2 {
                             return Err(self.create_error(
                                 ScannerErrorKind::InvalidCharLiteral,
                                 self.buffer.len(),
                                 None,
-                            ))
+                            ));
                         }
                     }
                     _ => self.push_char(c),
@@ -450,8 +452,10 @@ mod tests {
             "sample.tc",
             None,
         );
-        assert_eq!(scanner.next_token().unwrap().kind,
-                   TokenKind::String("Hello world! :D".to_string()))
+        assert_eq!(
+            scanner.next_token().unwrap().kind,
+            TokenKind::String("Hello world! :D".to_string())
+        )
     }
 
     #[test]
@@ -462,8 +466,10 @@ mod tests {
             "sample.tc",
             None,
         );
-        assert_eq!(scanner.next_token().unwrap().kind,
-                   TokenKind::String("Hello \t\rd + a b c world! :D".to_string()))
+        assert_eq!(
+            scanner.next_token().unwrap().kind,
+            TokenKind::String("Hello \t\rd + a b c world! :D".to_string())
+        )
     }
 
     #[test]
@@ -478,14 +484,17 @@ mod tests {
     }
 
     #[test]
-    fn pass_char_literal(){
+    fn pass_char_literal() {
         const SAMPLE_DATA: &str = "'\n'";
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
         );
-        assert_eq!(scanner.next_token().unwrap().kind, TokenKind::CharLiteral('\n'))
+        assert_eq!(
+            scanner.next_token().unwrap().kind,
+            TokenKind::CharLiteral('\n')
+        )
     }
 
     #[test]
@@ -508,5 +517,4 @@ mod tests {
         );
         assert!(scanner.next_token().is_err())
     }
-
 }
