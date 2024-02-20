@@ -1,7 +1,7 @@
 use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
 
 #[derive(Debug, PartialEq)]
-pub enum ScannerErrorKind{
+pub enum ScannerErrorKind {
     IllegalCharacter(char),
     MalformedNumber(String),
     InvalidCharLiteral,
@@ -9,7 +9,7 @@ pub enum ScannerErrorKind{
 }
 
 #[derive(Debug, Report, PartialEq)]
-pub struct ScannerError{
+pub struct ScannerError {
     kind: ScannerErrorKind,
     line: Option<String>,
     location: (usize, usize),
@@ -18,11 +18,16 @@ pub struct ScannerError{
     help: Option<String>,
 }
 
-impl ScannerError{
-    pub fn new(kind: ScannerErrorKind, line: Option<String>,
-               location: (usize, usize), len: usize,
-               stream_name: String, help: Option<String>) -> Self{
-        Self{
+impl ScannerError {
+    pub fn new(
+        kind: ScannerErrorKind,
+        line: Option<String>,
+        location: (usize, usize),
+        len: usize,
+        stream_name: String,
+        help: Option<String>,
+    ) -> Self {
+        Self {
             kind,
             line,
             location,
@@ -33,12 +38,13 @@ impl ScannerError{
     }
 }
 
-
-impl Diagnostic for ScannerError{
+impl Diagnostic for ScannerError {
     fn info(&self) -> String {
-        match &self.kind{
-            ScannerErrorKind::IllegalCharacter(c) => format!("illegal character: '{}'",c.escape_debug()),
-            ScannerErrorKind::MalformedNumber(c) =>  c.to_string(),
+        match &self.kind {
+            ScannerErrorKind::IllegalCharacter(c) => {
+                format!("illegal character: '{}'", c.escape_debug())
+            }
+            ScannerErrorKind::MalformedNumber(c) => c.to_string(),
             ScannerErrorKind::InvalidCharLiteral => "invalid char literal".to_string(),
             ScannerErrorKind::InvalidStringLiteral => "invalid string literal".to_string(),
         }
@@ -54,7 +60,7 @@ impl Diagnostic for ScannerError{
     }
 
     fn help(&self) -> Option<String> {
-        match self.kind{
+        match self.kind {
             ScannerErrorKind::IllegalCharacter(_) => None,
             ScannerErrorKind::MalformedNumber(_) => <Option<String> as Clone>::clone(&self.help),
             ScannerErrorKind::InvalidCharLiteral => None,

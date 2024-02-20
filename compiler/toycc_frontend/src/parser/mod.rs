@@ -1,32 +1,30 @@
 pub mod error;
 
-use std::io::{Read, Seek};
-use crate::BufferedStream;
 use crate::parser::error::ParserError;
+use crate::scanner::token::TokenKind;
 use crate::scanner::Scanner;
-use crate::scanner::token::{TokenKind};
+use crate::BufferedStream;
+use std::io::{Read, Seek};
 
-pub struct Parser<'a, S: Read + Seek>{
+pub struct Parser<'a, S: Read + Seek> {
     scanner: Scanner<'a, S>,
-    debug: Option<u32>
+    debug: Option<u32>,
 }
 
-
-impl<'a, S: Read + Seek> Parser<'a, S>
-{
-    pub fn new(stream: S, file_name: &'a str, debug: Option<u32>) -> Self{
-        Self{
-            scanner: Scanner::new(BufferedStream::new(stream),file_name,debug),
-            debug
+impl<'a, S: Read + Seek> Parser<'a, S> {
+    pub fn new(stream: S, file_name: &'a str, debug: Option<u32>) -> Self {
+        Self {
+            scanner: Scanner::new(BufferedStream::new(stream), file_name, debug),
+            debug,
         }
     }
 
-    pub fn parse(&mut self)-> Result<(),ParserError>{
-        if self.debug == Some(2){
+    pub fn parse(&mut self) -> Result<(), ParserError> {
+        if self.debug == Some(2) {
             println!("[DEBUG]")
         }
-        loop{
-            if self.scanner.next_token()?.kind == TokenKind::Eof{
+        loop {
+            if self.scanner.next_token()?.kind == TokenKind::Eof {
                 break;
             }
         }

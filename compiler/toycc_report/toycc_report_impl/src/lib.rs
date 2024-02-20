@@ -12,7 +12,7 @@ pub fn derive_report(input: TokenStream) -> TokenStream {
 
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let expanded = quote!{
+    let expanded = quote! {
         use std::fmt;
         impl #impl_generics Report for #name #ty_generics #where_clause{
             fn message(&self) -> String{
