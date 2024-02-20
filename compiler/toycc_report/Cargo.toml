@@ -2,6 +2,7 @@
 name = "toycc_report"
 version = "0.1.0"
 edition = "2021"
+authors = ["Bacal Mesfin:<mesfinb2@vcu.edu>", "Yaqub Mukhtar:<mukhtaryw@vcu.edu>"]
 
 [dependencies]
 toycc_report_impl = {path = "toycc_report_impl" }

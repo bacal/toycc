@@ -2,7 +2,7 @@
 name = "toycc_argparser"
 version = "0.1.0"
 edition = "2021"
-authors = ["Bacal Mesfin:<mesfinb2@vcu.edu>", "Yaqub Mukhtar:<mukhtar y@vcu.edu>"]
+authors = ["Bacal Mesfin:<mesfinb2@vcu.edu>", "Yaqub Mukhtar:<mukhtaryw@vcu.edu>"]
 description = "ToyC Compiler for EGRE591 (SPRING 2024)"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
