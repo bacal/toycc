@@ -68,7 +68,10 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                     Some(c) => Some(c),
                     None => {
                         self.next_line();
-                        self.get_char()
+                        match self.get_char(){
+                            Some(c) => Some(c),
+                            None => Some('\n'),
+                        }
                     }
                 }
             },
@@ -143,21 +146,16 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                     }
                 }
 
-                State::Exponent =>{
+                State::Exponent | State::Float =>{
                     match c {
                         ('0'..='9') => self.push_char(c),
                         _ => return match self.buffer.parse::<f64>(){
                             Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
-                            Err(_) =>   Err(self.create_error(ScannerErrorKind::MalformedNumber("exponent has no digits".to_string()),1, None))
+                            Err(_) =>   Err(self.create_error(ScannerErrorKind::MalformedNumber("expected digit".to_string()),1, None))
                         }
                     }
                 }
 
-                State::Float =>{
-                    // match c{
-                    //
-                    // }
-                }
 
                 State::CommentStart =>{
                     match c{
