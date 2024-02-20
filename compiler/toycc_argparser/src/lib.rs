@@ -105,7 +105,7 @@ fn scan_tokens(input: &str) -> Result<Vec<Token>,ArgumentParseError>{
     let mut tokens = vec![];
     let mut state = ScannerState::Initial;
     let mut buffer = String::new();
-    let mut input = input.chars().peekable();
+    let input = input.chars().peekable();
     for c in input{
         match state{
             ScannerState::Initial => {

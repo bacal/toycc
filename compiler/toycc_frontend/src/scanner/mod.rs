@@ -1,4 +1,4 @@
-use std::io::{BufRead, Read, Seek};
+use std::io::{Read, Seek};
 use crate::BufferedStream;
 use crate::scanner::error::{ScannerError, ScannerErrorKind};
 use crate::scanner::token::{Delimiter, Keyword, RelOP, Token, TokenKind};
@@ -16,7 +16,6 @@ enum State{
     Exponent,
     Sign,
     Float,
-    Assign,
     And,
     Or,
     Relationship,
@@ -25,6 +24,7 @@ enum State{
     CommentEat,
     String,
     CommentNested,
+    CharLiteral,
 }
 
 pub struct Scanner<'a, S: Read + Seek>
@@ -117,6 +117,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                         '-' => return Ok(self.create_token(TokenKind::AddOP(AddOP::Minus), 1)),
                         '|' => self.change_state(State::Or, c),
                         '"' => self.change_state(State::String,c),
+                        '\'' => self.change_state(State::CharLiteral,c),
                         '\n' => {},
                         _ => return Err(self.create_error(ScannerErrorKind::IllegalCharacter(c),0,None)),
                     }
@@ -185,9 +186,8 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                 },
 
                 State::CommentNested => {
-                    match c{
-                        '*' => self.comments_nested+=1,
-                        _ => {}
+                    if c == '*'{
+                        self.comments_nested+=1;
                     }
                     self.state = State::CommentEat;
                 }
@@ -253,8 +253,16 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                         _ => self.push_char(c),
                     }
                 }
-
-                _ => {}
+                State::CharLiteral => {
+                    match c{
+                        '\'' => return match self.buffer.len(){
+                            0 | 1 => Err(self.create_error(ScannerErrorKind::InvalidCharLiteral,0, None)),
+                            2 => Ok(self.create_token(TokenKind::CharLiteral(self.buffer.chars().nth(1).unwrap()),1)),
+                            len => Err(self.create_error(ScannerErrorKind::InvalidCharLiteral,len, None)),
+                        },
+                        _ => self.push_char(c),
+                    }
+                }
             }
         }
         // When we run out of data in our source stream we return the EOF token
@@ -275,7 +283,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
         let location = (self.previous_location.0,self.previous_location.1);
         let line = match kind{
             ScannerErrorKind::MalformedNumber(_) =>{
-                self.stream.rewind();
+                let _ = self.stream.rewind();
                 Some(self.stream.nth(location.0-1).unwrap())
             }
             _ => None

@@ -3,9 +3,8 @@ pub mod error;
 use std::io::{Read, Seek};
 use crate::BufferedStream;
 use crate::parser::error::ParserError;
-use crate::scanner::error::ScannerError;
 use crate::scanner::Scanner;
-use crate::scanner::token::{Token, TokenKind};
+use crate::scanner::token::{TokenKind};
 
 pub struct Parser<'a, S: Read + Seek>{
     scanner: Scanner<'a, S>,
@@ -23,15 +22,14 @@ impl<'a, S: Read + Seek> Parser<'a, S>
     }
 
     pub fn parse(&mut self)-> Result<(),ParserError>{
+        if self.debug == Some(2){
+            println!("[DEBUG]")
+        }
         loop{
             if self.scanner.next_token()?.kind == TokenKind::Eof{
                 break;
             }
         }
         Ok(())
-    }
-
-    fn advance(&mut self) -> Result<Token,ScannerError>{
-        self.scanner.next_token()
     }
 }
