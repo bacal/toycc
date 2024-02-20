@@ -55,8 +55,8 @@ impl Arguments{
                  "Options".white().bold());
     }
     fn authors_string() -> String{
-        let authors = AUTHORS.split(":")
-            .filter(|s| !s.contains("<"))
+        let authors = AUTHORS.split(':')
+            .filter(|s| !s.contains('<'))
             .join(", ");
         format!("{}: {authors}","Authors".white().bold())
     }
@@ -106,7 +106,7 @@ fn scan_tokens(input: &str) -> Result<Vec<Token>,ArgumentParseError>{
     let mut state = ScannerState::Initial;
     let mut buffer = String::new();
     let mut input = input.chars().peekable();
-    while let Some(c) = input.next(){
+    for c in input{
         match state{
             ScannerState::Initial => {
                 buffer.clear();

@@ -1,6 +1,4 @@
-use std::io::{BufRead, BufReader, Lines, Read, Seek};
-use std::iter::{Peekable};
-use std::sync::Arc;
+use std::io::{BufRead, Read, Seek};
 use crate::BufferedStream;
 use crate::scanner::error::{ScannerError, ScannerErrorKind};
 use crate::scanner::token::{Delimiter, Keyword, RelOP, Token, TokenKind};
@@ -18,7 +16,6 @@ enum State{
     Exponent,
     Sign,
     Float,
-    Addop,
     Assign,
     And,
     Or,
@@ -80,9 +77,14 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
     }
 
     fn next_line(&mut self){
+        self.previous_location = (self.lines_read,self.position+1);
         self.stream.next();
         self.lines_read+=1;
         self.position =0;
+        if self.stream.peek().is_none(){
+            self.lines_read-=1;
+            self.position = self.previous_location.0;
+        }
     }
 
     fn change_state(&mut self, state: State, c: char){
@@ -105,16 +107,17 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                     match c {
                         ('a'..='z') | ('A'..='Z') => self.change_state(State::Identifier,c),
                         ('0'..='9') => self.change_state(State::Integer,c),
-                        '\n' | ' ' | '\t' => self.position+=1,
+                        ' ' | '\t' => self.position+=1,
                         '<' | '>' | '!' | '=' => self.change_state(State::Relationship, c),
-                        '*' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Multiply), self.buffer.len())),
-                        '%' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Mod), self.buffer.len())),
+                        '*' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Multiply),1)),
+                        '%' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Mod), 1)),
                         '/' => self.change_state(State::CommentStart, c),
                         '&' => self.change_state(State::And, c),
-                        '+' => return Ok(self.create_token(TokenKind::AddOP(AddOP::Plus), self.buffer.len())),
-                        '-' => return Ok(self.create_token(TokenKind::AddOP(AddOP::Minus), self.buffer.len())),
+                        '+' => return Ok(self.create_token(TokenKind::AddOP(AddOP::Plus), 1)),
+                        '-' => return Ok(self.create_token(TokenKind::AddOP(AddOP::Minus), 1)),
                         '|' => self.change_state(State::Or, c),
                         '"' => self.change_state(State::String,c),
+                        '\n' => {},
                         _ => return Err(self.create_error(ScannerErrorKind::IllegalCharacter(c),0,None)),
                     }
                 }
@@ -131,8 +134,15 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                         ('0'..='9') => self.push_char(c),
                         'E' => self.change_state(State::Sign,c),
                         '.' => self.change_state(State::Float,c),
+                        '\n' =>return match self.buffer.parse::<f64>() {
+                            Ok(num) => Ok(self.create_token(TokenKind::Number(num), self.buffer.len())),
+                            Err(_) => Err(self.create_error(ScannerErrorKind::MalformedNumber(format!("invalid number {}", self.buffer)), 1, None))
+                        },
                         _ => return match self.buffer.parse::<f64>(){
-                            Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
+                            Ok(num) => {
+                                self.position-=1;
+                                Ok(self.create_token(TokenKind::Number(num), self.buffer.len()))
+                            },
                             Err(_) =>  Err(self.create_error(ScannerErrorKind::MalformedNumber(format!("invalid number {}",self.buffer)),1, None))
                         }
                     }
@@ -150,7 +160,10 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                     match c {
                         ('0'..='9') => self.push_char(c),
                         _ => return match self.buffer.parse::<f64>(){
-                            Ok(num) =>  Ok(self.create_token(TokenKind::Number(num),self.buffer.len())),
+                            Ok(num) => {
+                                self.position-=1;
+                                Ok(self.create_token(TokenKind::Number(num), self.buffer.len()))
+                            },
                             Err(_) =>   Err(self.create_error(ScannerErrorKind::MalformedNumber("expected digit".to_string()),1, None))
                         }
                     }
@@ -167,7 +180,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                             self.change_state(State::CommentEat, c);
                             self.comments_nested +=1;
                         },
-                        _ => return Ok(self.create_token(TokenKind::MulOP(MulOP::Divide),1)),
+                        _ => return Ok(self.create_token(TokenKind::MulOP(MulOP::Divide), 1)),
                     }
                 },
 
@@ -203,7 +216,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
 
                 State::And => {
                     return match c {
-                        '&' => Ok(self.create_token(TokenKind::MulOP(MulOP::And), self.buffer.len())),
+                        '&' => Ok(self.create_token(TokenKind::MulOP(MulOP::And), 2)),
                         _ => Err(self.create_error(ScannerErrorKind::IllegalCharacter(c), 0, None)),
                     }
                 }
@@ -236,7 +249,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
 
                 State::String =>{
                     match c{
-                        '"' => return Ok(self.create_token(TokenKind::String(self.buffer[1..].to_string()),self.buffer.len()-1)),
+                        '"' => return Ok(self.create_token(TokenKind::String(self.buffer[1..].to_string()), self.buffer.len()-1)),
                         _ => self.push_char(c),
                     }
                 }
@@ -245,7 +258,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
             }
         }
         // When we run out of data in our source stream we return the EOF token
-        Ok(Token::new(TokenKind::Eof,0,(self.lines_read,self.position)))
+        Ok(self.create_token(TokenKind::Eof,0))
     }
 
     pub fn create_token(&mut self, kind: TokenKind, len: usize) -> Token{
@@ -289,7 +302,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
             "write" => TokenKind::Keyword(Keyword::Write),
             data => TokenKind::Identifier(data.to_owned())
         };
-        self.create_token(kind,self.buffer.len())
+        self.create_token(kind, self.buffer.len())
     }
 }
 
@@ -302,17 +315,17 @@ mod tests{
     use super::Scanner;
     #[test]
     fn test_scanner() {
-        let data = "3 ";
+        let data = "3+3";
         let mut scanner = Scanner::new(BufferedStream::new(Cursor::new(data.as_bytes())), "name.tc",None);
         
         let mut t = scanner.next_token();
-        // assert_eq!(t, Ok(Token::new(TokenKind::Number(3.), 1, (1,1))));
+        assert_eq!(t, Ok(Token::new(TokenKind::Number(3.0), 1, (1,0))));
+
+        t = scanner.next_token();
+        assert_eq!(t.unwrap().kind, TokenKind::AddOP(AddOP::Plus));
         //
-        // t = scanner.next_token();
-        // assert_eq!(t, Ok(Token::new(TokenKind::AddOP(AddOP::Plus), 0, (1,2))));
-        //
-        // t = scanner.next_token();
-        // assert_eq!(t, Ok(Token::new(TokenKind::Number(3.), 1, (1, 4))));
+        t = scanner.next_token();
+        assert_eq!(t.unwrap().kind, TokenKind::Number(3.0));
 
     }
 
@@ -325,7 +338,7 @@ mod tests{
                                 // this is a comment"#;
 
         let mut scanner = Scanner::new(BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-                                       "name.tc",None);
+                                       "sample.tc",None);
         let mut tokens = vec![];
         loop{
             let token = scanner.next_token();

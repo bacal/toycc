@@ -36,8 +36,8 @@ pub fn derive_report(input: TokenStream) -> TokenStream {
                                 };
                                 let tail = match len {
                                     0 => "".to_owned(),
-                                    1 => format!("{}^",spaces),
-                                    len => format!("{}^\n{}{}",spaces,spaces,"~".repeat(len-1 as usize)).bright_green().to_string(),
+                                    1 => format!("\n{}^",spaces),
+                                    len => format!("\n{}^\n{}{}",spaces,spaces,"~".repeat(len-1 as usize)).bright_green().to_string(),
                                 };
                                 let source = match source{
                                     Some(source) => format!("\n{source}"),

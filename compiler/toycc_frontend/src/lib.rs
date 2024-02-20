@@ -1,7 +1,6 @@
 mod scanner;
 mod parser;
-use std::io::{BufRead, BufReader, Lines, Read, Seek, SeekFrom};
-use std::iter::Peekable;
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 pub use parser::Parser;
 
 
