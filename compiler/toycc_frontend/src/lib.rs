@@ -24,7 +24,7 @@ where
     pub fn peek(&mut self) -> Option<String> {
         match self.eof {
             true => None,
-            false => Some(self.buffer.trim().to_string()),
+            false => Some(self.buffer.to_string()),
         }
     }
 }
@@ -40,7 +40,7 @@ impl<S: Read + Seek> Iterator for BufferedStream<S> {
                     self.eof = true;
                     None
                 }
-                _ => Some(self.buffer.trim().to_string()),
+                _ => Some(self.buffer.to_string()),
             },
             Err(_) => None,
         }
