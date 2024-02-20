@@ -1,33 +1,30 @@
-pub enum ErrorKind{
-    ParsingError{
+pub enum ErrorKind {
+    ParsingError {
         file_name: String,
-        pos: (usize,usize),
+        pos: (usize, usize),
         len: usize,
-        source: String,
+        source: Option<String>,
     },
     SimpleError(String),
-    NoInfoError,
+    NoHelpError,
 }
 
-pub enum WarningKind{
+pub enum WarningKind {}
 
-}
-
-pub enum ReportLevel{
+pub enum ReportLevel {
     Warning(WarningKind),
     Error(ErrorKind),
     Info,
 }
 
-pub trait Diagnostic{
+pub trait Diagnostic {
     fn info(&self) -> String;
     fn level(&self) -> ReportLevel;
     fn help(&self) -> Option<String>;
     fn others(&self) -> Option<&dyn Report>;
 }
 
-
-pub trait Report: Diagnostic{
+pub trait Report: Diagnostic {
     fn message(&self) -> String;
 }
 

@@ -68,7 +68,7 @@ version = "0.1.0"
 dependencies = [
  "colored",
  "toycc_argparser",
- "toycc_parser",
+ "toycc_frontend",
  "toycc_report",
 ]
 
@@ -82,7 +82,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "toycc_parser"
+name = "toycc_frontend"
 version = "0.1.0"
 dependencies = [
  "colored",

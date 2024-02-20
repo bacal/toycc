@@ -14,6 +14,6 @@ members = [
 
 [dependencies]
 colored = "2.1.0"
-toycc_parser = {path = "compiler/toycc_frontend" }
+toycc_frontend = {path = "compiler/toycc_frontend" }
 toycc_report = {path = "compiler/toycc_report"}
 toycc_argparser = {path = "compiler/toycc_argparser"}
