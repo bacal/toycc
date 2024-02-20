@@ -13,7 +13,7 @@ enum State {
     Initial,
     Identifier,
     Integer,
-    Exponent,
+    Scientific,
     Sign,
     Float,
     And,
@@ -25,6 +25,8 @@ enum State {
     String,
     CommentNested,
     CharLiteral,
+    FloatFirst,
+    SciFirst,
 }
 
 pub struct Scanner<'a, S: Read + Seek> {
@@ -108,6 +110,11 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                         '|' => self.change_state(State::Or, c),
                         '"' => self.change_state(State::String, c),
                         '\'' => self.change_state(State::CharLiteral, c),
+                        ';' => {
+                            return Ok(
+                                self.create_token(TokenKind::Delimiter(Delimiter::Semicolon), 1)
+                            )
+                        }
                         _ => {
                             return Err(self.create_error(
                                 ScannerErrorKind::IllegalCharacter(c),
@@ -126,7 +133,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                 State::Integer => match c {
                     ('0'..='9') => self.push_char(c),
                     'E' => self.change_state(State::Sign, c),
-                    '.' => self.change_state(State::Float, c),
+                    '.' => self.change_state(State::FloatFirst, c),
                     _ => {
                         return match self.buffer.parse::<f64>() {
                             Ok(num) => {
@@ -147,30 +154,50 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     }
                 },
                 State::Sign => match c {
-                    '+' | '-' => self.change_state(State::Exponent, c),
+                    '+' | '-' => self.change_state(State::SciFirst, c),
                     _ => {
                         return Err(self.create_error(
-                            ScannerErrorKind::MalformedNumber("exponent missing sign".to_string()),
+                            ScannerErrorKind::MalformedNumber(
+                                "scientific number missing sign".to_string(),
+                            ),
                             1,
                             Some("expected + or -".to_string()),
                         ))
                     }
                 },
 
-                State::Exponent | State::Float => match c {
+                State::FloatFirst => match c {
+                    ('0'..='9') => self.change_state(State::Float, c),
+                    _ => {
+                        return Err(self.create_error(
+                            ScannerErrorKind::MalformedNumber(
+                                "missing digits after decimal".to_string(),
+                            ),
+                            self.buffer.len(),
+                            Some("expected digit".to_string()),
+                        ))
+                    }
+                },
+
+                State::SciFirst => match c {
+                    ('0'..='9') => self.change_state(State::Scientific, c),
+                    _ => {
+                        return Err(self.create_error(
+                            ScannerErrorKind::MalformedNumber(
+                                "missing digits after sign".to_string(),
+                            ),
+                            self.buffer.len(),
+                            Some("expected digit".to_string()),
+                        ))
+                    }
+                },
+                State::Float | State::Scientific => match c {
                     ('0'..='9') => self.push_char(c),
                     _ => {
-                        return match self.buffer.parse::<f64>() {
-                            Ok(num) => {
-                                self.position -= 1;
-                                Ok(self.create_token(TokenKind::Number(num), self.buffer.len()))
-                            }
-                            Err(_) => Err(self.create_error(
-                                ScannerErrorKind::MalformedNumber("expected digit".to_string()),
-                                1,
-                                None,
-                            )),
-                        }
+                        return Ok(self.create_token(
+                            TokenKind::Number(self.buffer.parse::<f64>().unwrap()),
+                            self.buffer.len(),
+                        ))
                     }
                 },
 
@@ -516,5 +543,36 @@ mod tests {
             None,
         );
         assert!(scanner.next_token().is_err())
+    }
+
+    #[test]
+    fn test_everything() {
+        const SAMPLE_DATA: &str = r#"int char return if else for
+                                    do while switch case default write
+                                    read continue break newline
+                                    a = 32; b = 32.; c7   =   99E+31"#;
+        let mut scanner = Scanner::new(
+            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
+            "sample.tc",
+            None,
+        );
+        let mut tokens = vec![];
+        loop {
+            let token = scanner.next_token();
+            match token {
+                Ok(token) => {
+                    if token.kind == TokenKind::Eof {
+                        tokens.push(token.kind);
+                        break;
+                    }
+                    tokens.push(token.kind);
+                }
+                Err(e) => {
+                    println!("{e}");
+                    break;
+                }
+            }
+        }
+        println!("{:?}", tokens);
     }
 }
