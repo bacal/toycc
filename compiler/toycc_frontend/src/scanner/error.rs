@@ -9,7 +9,7 @@ pub enum ScannerErrorKind{
 #[derive(Debug, Report, PartialEq)]
 pub struct ScannerError{
     kind: ScannerErrorKind,
-    line: String,
+    line: Option<String>,
     location: (usize, usize),
     len: usize,
     stream_name: String,
@@ -17,7 +17,7 @@ pub struct ScannerError{
 }
 
 impl ScannerError{
-    pub fn new(kind: ScannerErrorKind, line: String,
+    pub fn new(kind: ScannerErrorKind, line: Option<String>,
                location: (usize, usize), len: usize,
                stream_name: String, help: Option<String>) -> Self{
         Self{

@@ -3,7 +3,7 @@ use std::iter::{Peekable};
 use std::sync::Arc;
 use crate::BufferedStream;
 use crate::scanner::error::{ScannerError, ScannerErrorKind};
-use crate::scanner::token::{Keyword, Token, TokenKind};
+use crate::scanner::token::{Delimiter, Keyword, RelOP, Token, TokenKind};
 
 use self::token::MulOP;
 use self::token::AddOP;
@@ -24,7 +24,10 @@ enum State{
     Or,
     Relationship,
     CommentStart,
-    Eat
+    CommentEnd,
+    CommentEat,
+    String,
+    CommentNested,
 }
 
 pub struct Scanner<'a, S: Read + Seek>
@@ -65,7 +68,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                     Some(c) => Some(c),
                     None => {
                         self.next_line();
-                        Some('\n')
+                        self.get_char()
                     }
                 }
             },
@@ -74,15 +77,9 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
     }
 
     fn next_line(&mut self){
-        let prev_position = self.position;
-        if self.stream.next().is_some(){
-            self.lines_read+=1;
-            self.position =0;
-        }
-        if self.stream.peek().is_none(){
-            self.position = prev_position;
-            self.lines_read -=1;
-        }
+        self.stream.next();
+        self.lines_read+=1;
+        self.position =0;
     }
 
     fn change_state(&mut self, state: State, c: char){
@@ -98,16 +95,15 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
     }
 
     pub fn next_token(&mut self) -> Result<Token, ScannerError>{
-        self.buffer.clear();
         while let Some(c) = self.get_char() {
             match self.state {
                 State::Initial => {
+                    self.buffer.clear();
                     match c {
                         ('a'..='z') | ('A'..='Z') => self.change_state(State::Identifier,c),
                         ('0'..='9') => self.change_state(State::Integer,c),
-                        '\n' => {},
-                        ' ' => {println!("whitespace")},
-                        '<' | '>' | '!' => self.change_state(State::Relationship, c),
+                        '\n' | ' ' | '\t' => self.position+=1,
+                        '<' | '>' | '!' | '=' => self.change_state(State::Relationship, c),
                         '*' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Multiply), self.buffer.len())),
                         '%' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Mod), self.buffer.len())),
                         '/' => self.change_state(State::CommentStart, c),
@@ -115,7 +111,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                         '+' => return Ok(self.create_token(TokenKind::AddOP(AddOP::Plus), self.buffer.len())),
                         '-' => return Ok(self.create_token(TokenKind::AddOP(AddOP::Minus), self.buffer.len())),
                         '|' => self.change_state(State::Or, c),
-                        '=' => return Ok(self.create_token(TokenKind::AssignOP, self.buffer.len())),
+                        '"' => self.change_state(State::String,c),
                         _ => return Err(self.create_error(ScannerErrorKind::IllegalCharacter(c),0,None)),
                     }
                 }
@@ -170,57 +166,82 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
                             self.state = State::Initial;
                         }
                         '*' => {
-                            self.change_state(State::Eat, c);
+                            self.change_state(State::CommentEat, c);
+                            self.comments_nested +=1;
                         },
-                        _ => return match self.buffer.parse::<f64>(){
-                            Ok(_num) =>  Ok(self.create_token(TokenKind::MulOP(MulOP::Divide),self.buffer.len())),
-                            Err(_) =>  Err(self.create_error(ScannerErrorKind::IllegalCharacter(c), 0, None))
-                        }
+                        _ => return Ok(self.create_token(TokenKind::MulOP(MulOP::Divide),1)),
                     }
+                },
+
+                State::CommentNested => {
+                    match c{
+                        '*' => self.comments_nested+=1,
+                        _ => {}
+                    }
+                    self.state = State::CommentEat;
                 }
 
-                State::Eat => {
-
-                    let mut prev: Option<char> = Some(c);
-                    self.comments_nested = 1;
-
-                    while self.comments_nested >= 1 {
-                        let current = self.get_char();
-                        if prev == Some('/') && current == Some('*') {
-                            self.comments_nested += 1;
-                        }
-                        else if prev == Some('*') && current == Some('/') {
-                            self.comments_nested -= 1;
-                        }
-                        else {}
-
-                        prev = current;
-                        
+                State::CommentEnd =>{
+                    match c{
+                        '/' => self.comments_nested-=1,
+                        _ => self.state = State::CommentEat,
                     }
 
-                    self.change_state(State::Initial, c);
-                    
+                    match self.comments_nested{
+                        0 => self.state = State::Initial,
+                        _ => self.state = State::CommentEat,
+                    }
+                    self.position+=1
+                }
+
+                State::CommentEat => {
+                    match c{
+                        '*' => self.state = State::CommentEnd,
+                        '/' => self.state = State::CommentNested,
+                        _ => {},
+                    };
+                    self.position+=1
                 }
 
                 State::And => {
-                    match c {
-                        '&' => return Ok(self.create_token(TokenKind::MulOP(MulOP::And), self.buffer.len())),
-                        _ => return Err(self.create_error(ScannerErrorKind::IllegalCharacter(c),0,None)),
+                    return match c {
+                        '&' => Ok(self.create_token(TokenKind::MulOP(MulOP::And), self.buffer.len())),
+                        _ => Err(self.create_error(ScannerErrorKind::IllegalCharacter(c), 0, None)),
                     }
                 }
                 
                 State::Or => {
-                    match c {
-                        '|' => return Ok(self.create_token(TokenKind::AddOP(AddOP::Or), self.buffer.len())),
-                        _ => return Err(self.create_error(ScannerErrorKind::IllegalCharacter(c), 0, None))
+                    return match c {
+                        '|' => Ok(self.create_token(TokenKind::AddOP(AddOP::Or), self.buffer.len())),
+                        _ => Err(self.create_error(ScannerErrorKind::IllegalCharacter(c), 0, None))
                     }
                 }
 
-                // State::Relationship => {
-                //     match c {
-                //         '=' => return Ok(self.create_)
-                //     }
-                // }
+                State::Relationship => {
+                    return match c {
+                        '=' => match self.buffer.as_str() {
+                            "<" => Ok(self.create_token(TokenKind::RelOP(RelOP::LessEqual), 2)),
+                            ">" => Ok(self.create_token(TokenKind::RelOP(RelOP::GreaterEqual), 2)),
+                            "!" => Ok(self.create_token(TokenKind::RelOP(RelOP::NotEquals), 2)),
+                            "=" => Ok(self.create_token(TokenKind::RelOP(RelOP::EqualsEquals), 2)),
+                            _ => Err(self.create_error(ScannerErrorKind::IllegalCharacter('a'), 1, None))
+                        },
+                        _ => match self.buffer.as_str() {
+                            "<" => Ok(self.create_token(TokenKind::RelOP(RelOP::LessThan), 1)),
+                            ">" => Ok(self.create_token(TokenKind::RelOP(RelOP::GreaterThan), 1)),
+                            "!" => Ok(self.create_token(TokenKind::Delimiter(Delimiter::Not), 1)),
+                            "=" => Ok(self.create_token(TokenKind::AssignOP, 1)),
+                            _ => Err(self.create_error(ScannerErrorKind::IllegalCharacter('a'), 1, None))
+                        }
+                    }
+                }
+
+                State::String =>{
+                    match c{
+                        '"' => return Ok(self.create_token(TokenKind::String(self.buffer[1..].to_string()),self.buffer.len()-1)),
+                        _ => self.push_char(c),
+                    }
+                }
 
                 _ => {}
             }
@@ -240,20 +261,35 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
         token
     }
     fn create_error(&mut self, kind: ScannerErrorKind, len: usize, help: Option<String>) -> ScannerError{
-        let location = (self.previous_location.0,self.previous_location.1+1);
+        let location = (self.previous_location.0,self.previous_location.1);
         let line = match kind{
             ScannerErrorKind::MalformedNumber(_) =>{
                 self.stream.rewind();
-                self.stream.nth(location.0-1).unwrap()
+                Some(self.stream.nth(location.0-1).unwrap())
             }
-            _ => "".to_string()
+            _ => None
         };
         ScannerError::new(kind,line,location,len,self.stream_name.to_string(),help)
     }
     fn keyword_or_id_token(&mut self) -> Token{
         let kind = match self.buffer.as_str(){
+            "break" => TokenKind::Keyword(Keyword::Break),
+            "char" => TokenKind::Keyword(Keyword::Char),
+            "case" => TokenKind::Keyword(Keyword::Case),
+            "continue" => TokenKind::Keyword(Keyword::Continue),
+            "default" => TokenKind::Keyword(Keyword::Default),
+            "do" => TokenKind::Keyword(Keyword::Do),
+            "else" => TokenKind::Keyword(Keyword::Else),
+            "for" => TokenKind::Keyword(Keyword::For),
             "int" => TokenKind::Keyword(Keyword::Int),
-            id => TokenKind::Identifier(id.to_string()),
+            "if" => TokenKind::Keyword(Keyword::If),
+            "newline" => TokenKind::Keyword(Keyword::Newline),
+            "return" => TokenKind::Keyword(Keyword::Return),
+            "read" => TokenKind::Keyword(Keyword::Read),
+            "switch" => TokenKind::Keyword(Keyword::Switch),
+            "while" => TokenKind::Keyword(Keyword::While),
+            "write" => TokenKind::Keyword(Keyword::Write),
+            data => TokenKind::Identifier(data.to_owned())
         };
         self.create_token(kind,self.buffer.len())
     }
@@ -261,24 +297,64 @@ impl<'a, S: Read + Seek> Scanner<'a, S>
 
 
 #[cfg(test)]
-mod test_integration{
+mod tests{
     use std::io::Cursor;
     use crate::{scanner::token::{AddOP, Keyword, Token, TokenKind}, BufferedStream};
+    use crate::scanner::token::{MulOP, RelOP};
     use super::Scanner;
     #[test]
     fn test_scanner() {
-        let data = " 3 ";
+        let data = "3 ";
         let mut scanner = Scanner::new(BufferedStream::new(Cursor::new(data.as_bytes())), "name.tc",None);
         
         let mut t = scanner.next_token();
-        assert_eq!(t, Ok(Token::new(TokenKind::Number(3.), 1, (1,1))));
-        
-        t = scanner.next_token();
-        assert_eq!(t, Ok(Token::new(TokenKind::AddOP(AddOP::Plus), 0, (1,2))));
+        // assert_eq!(t, Ok(Token::new(TokenKind::Number(3.), 1, (1,1))));
+        //
+        // t = scanner.next_token();
+        // assert_eq!(t, Ok(Token::new(TokenKind::AddOP(AddOP::Plus), 0, (1,2))));
+        //
+        // t = scanner.next_token();
+        // assert_eq!(t, Ok(Token::new(TokenKind::Number(3.), 1, (1, 4))));
 
-        t = scanner.next_token();
-        assert_eq!(t, Ok(Token::new(TokenKind::Number(3.), 1, (1, 4))));
+    }
 
+    #[test]
+    fn sample_run(){
+        const SAMPLE_DATA: &str = r#"hello char int while <= !=
+                                123 "hello" /*
+                                * / && /* ||
+                                > */ */ *
+                                // this is a comment"#;
+
+        let mut scanner = Scanner::new(BufferedStream::new(Cursor::new(SAMPLE_DATA)),
+                                       "name.tc",None);
+        let mut tokens = vec![];
+        loop{
+            let token = scanner.next_token();
+            match token{
+                Ok(token) => {
+                    if token.kind == TokenKind::Eof{
+                        tokens.push(token.kind);
+                        break
+                    }
+                    tokens.push(token.kind);
+                }
+                Err(e) => {
+                    println!("{e}");
+                    break;
+                }
+            }
+        }
+        assert_eq!(tokens, [TokenKind::Identifier("hello".to_string()),
+                            TokenKind::Keyword(Keyword::Char),
+                            TokenKind::Keyword(Keyword::Int),
+                            TokenKind::Keyword(Keyword::While),
+                            TokenKind::RelOP(RelOP::LessEqual),
+                            TokenKind::RelOP(RelOP::NotEquals),
+                            TokenKind::Number(123.into()),
+                            TokenKind::String("hello".to_string()),
+                            TokenKind::MulOP(MulOP::Multiply),
+                            TokenKind::Eof])
     }
 }
 

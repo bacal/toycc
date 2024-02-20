@@ -5,7 +5,7 @@ use std::fs::File;
 use std::process::exit;
 
 use toycc_argparser::Arguments;
-use toycc_parser::Parser;
+use toycc_frontend::Parser;
 use toycc_report::{Diagnostic, Report};
 use crate::error::Error;
 fn main(){

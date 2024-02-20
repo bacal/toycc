@@ -39,16 +39,22 @@ pub fn derive_report(input: TokenStream) -> TokenStream {
                                     1 => format!("{}^",spaces),
                                     len => format!("{}^\n{}{}",spaces,spaces,"~".repeat(len-1 as usize)).bright_green().to_string(),
                                 };
-                                format!("{}:{}:{}: {}: {}\n{}\n{}{}{}",file_name.white().bold(),
+                                let source = match source{
+                                    Some(source) => format!("\n{source}"),
+                                    None => "".to_owned(),
+                                };
+                                format!("{}:{}:{}: {}: {}{}{}{}{}",
+                                    file_name.white().bold(),
                                     pos.0.to_string().white().bold(),
                                     pos.1.to_string().white().bold(),
                                     level,
                                     self.info().white().bold(),
-                                    source, tail.bright_green(),
+                                    source,
+                                    tail.bright_green(),
                                     spaces,
                                     help.bright_green())
                             },
-                            ErrorKind::NoInfoError => format!("{}: {}: {}","toycc".white().bold(), level, self.info().white().bold()),
+                            ErrorKind::NoHelpError => format!("{}: {}: {}","toycc".white().bold(), level, self.info().white().bold()),
                             ErrorKind::SimpleError(s) => format!("{}: {}: {}: {}","toycc".white().bold(), level, self.info().white().bold(), s.white().bold()),
                         }
                     },

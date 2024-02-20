@@ -17,7 +17,7 @@ impl Diagnostic for Error{
 
     fn level(&self) -> ReportLevel {
         match self{
-            Self::MissingInput => ReportLevel::Error(ErrorKind::NoInfoError),
+            Self::MissingInput => ReportLevel::Error(ErrorKind::NoHelpError),
             Self::FileNotFound(name) => ReportLevel::Error(ErrorKind::SimpleError(format!("'{name}'"))),
         }
 

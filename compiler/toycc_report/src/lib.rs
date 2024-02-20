@@ -3,10 +3,10 @@ pub enum ErrorKind{
         file_name: String,
         pos: (usize,usize),
         len: usize,
-        source: String,
+        source: Option<String>,
     },
     SimpleError(String),
-    NoInfoError,
+    NoHelpError,
 }
 
 pub enum WarningKind{

@@ -8,6 +8,7 @@ pub use parser::Parser;
 pub struct BufferedStream<S: Read + Seek> {
     reader: BufReader<S>,
     buffer: String,
+    eof: bool,
 }
 
 impl<S: Read + Seek> BufferedStream<S>
@@ -18,10 +19,14 @@ where S: Read + Seek,
         Self{
             reader,
             buffer: String::new(),
+            eof: false,
         }
     }
     pub fn peek(&mut self) -> Option<String>{
-        Some(self.buffer.trim().to_string())
+        match self.eof{
+            true => None,
+            false => Some(self.buffer.trim().to_string())
+        }
     }
 }
 
@@ -33,7 +38,10 @@ impl<S: Read + Seek> Iterator for BufferedStream<S>
         self.buffer.clear();
         match self.reader.read_line(&mut self.buffer){
             Ok(num) => match num{
-                0 => None,
+                0 => {
+                    self.eof = true;
+                    None
+                },
                 _ => Some(self.buffer.trim().to_string())
             }
             Err(_) => None,

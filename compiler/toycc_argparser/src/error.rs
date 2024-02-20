@@ -23,7 +23,7 @@ impl Diagnostic for ArgumentParseError{
     fn level(&self) -> ReportLevel {
         match self{
             Self::Usage(_) => ReportLevel::Info,
-            _ => ReportLevel::Error(ErrorKind::NoInfoError)
+            _ => ReportLevel::Error(ErrorKind::NoHelpError)
         }
     }
 
