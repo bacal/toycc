@@ -61,9 +61,9 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                 Some(c) => Some(c),
                 None => {
                     self.next_line();
-                    match self.get_char() {
+                    match self.get_char(){
                         Some(c) => Some(c),
-                        None => Some('\n'),
+                        None => Some('\n')
                     }
                 }
             },
@@ -76,10 +76,6 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
         self.stream.next();
         self.lines_read += 1;
         self.position = 0;
-        if self.stream.peek().is_none() {
-            self.lines_read -= 1;
-            self.position = self.previous_location.0;
-        }
     }
 
     fn change_state(&mut self, state: State, c: char) {
@@ -101,7 +97,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     match c {
                         ('a'..='z') | ('A'..='Z') => self.change_state(State::Identifier, c),
                         ('0'..='9') => self.change_state(State::Integer, c),
-                        ' ' | '\t' => self.position += 1,
+                        ' ' |'\n' | '\t' => self.position += 1,
                         '<' | '>' | '!' | '=' => self.change_state(State::Relationship, c),
                         '*' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Multiply), 1)),
                         '%' => return Ok(self.create_token(TokenKind::MulOP(MulOP::Mod), 1)),
@@ -112,7 +108,6 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                         '|' => self.change_state(State::Or, c),
                         '"' => self.change_state(State::String, c),
                         '\'' => self.change_state(State::CharLiteral, c),
-                        '\n' => {}
                         _ => {
                             return Err(self.create_error(
                                 ScannerErrorKind::IllegalCharacter(c),
@@ -132,25 +127,12 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     ('0'..='9') => self.push_char(c),
                     'E' => self.change_state(State::Sign, c),
                     '.' => self.change_state(State::Float, c),
-                    '\n' => {
-                        return match self.buffer.parse::<f64>() {
-                            Ok(num) => {
-                                Ok(self.create_token(TokenKind::Number(num), self.buffer.len()))
-                            }
-                            Err(_) => Err(self.create_error(
-                                ScannerErrorKind::MalformedNumber(format!(
-                                    "invalid number {}",
-                                    self.buffer
-                                )),
-                                1,
-                                None,
-                            )),
-                        }
-                    }
                     _ => {
                         return match self.buffer.parse::<f64>() {
                             Ok(num) => {
-                                self.position -= 1;
+                                if c != '\n'{
+                                    self.position-=1;
+                                }
                                 Ok(self.create_token(TokenKind::Number(num), self.buffer.len()))
                             }
                             Err(_) => Err(self.create_error(
@@ -283,6 +265,11 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                             self.buffer.len() - 1,
                         ))
                     }
+                    '\n' => return Err(self.create_error(
+                            ScannerErrorKind::InvalidStringLiteral,
+                            self.buffer.len() - 1,
+                            Some("expected '\"'".to_string())
+                    )),
                     _ => self.push_char(c),
                 },
                 State::CharLiteral => match c {
@@ -302,6 +289,16 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                                 len,
                                 None,
                             )),
+                        }
+                    }
+                    '\n' => {
+                        self.push_char(c);
+                        if self.buffer.len() > 2{
+                            return Err(self.create_error(
+                                ScannerErrorKind::InvalidCharLiteral,
+                                self.buffer.len(),
+                                None,
+                            ))
                         }
                     }
                     _ => self.push_char(c),
@@ -378,6 +375,7 @@ mod tests {
         BufferedStream,
     };
     use std::io::Cursor;
+
     #[test]
     fn test_scanner() {
         let data = "3+3";
@@ -443,4 +441,72 @@ mod tests {
             ]
         )
     }
+
+    #[test]
+    fn pass_string_literal() {
+        const SAMPLE_DATA: &str = r#""Hello world! :D""#;
+        let mut scanner = Scanner::new(
+            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
+            "sample.tc",
+            None,
+        );
+        assert_eq!(scanner.next_token().unwrap().kind,
+                   TokenKind::String("Hello world! :D".to_string()))
+    }
+
+    #[test]
+    fn pass_complex_string_literal() {
+        const SAMPLE_DATA: &str = "\"Hello \t\rd + a b c world! :D\"";
+        let mut scanner = Scanner::new(
+            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
+            "sample.tc",
+            None,
+        );
+        assert_eq!(scanner.next_token().unwrap().kind,
+                   TokenKind::String("Hello \t\rd + a b c world! :D".to_string()))
+    }
+
+    #[test]
+    fn fail_string_literal() {
+        const SAMPLE_DATA: &str = "\"Hello world!\n\"";
+        let mut scanner = Scanner::new(
+            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
+            "sample.tc",
+            None,
+        );
+        assert!(scanner.next_token().is_err())
+    }
+
+    #[test]
+    fn pass_char_literal(){
+        const SAMPLE_DATA: &str = "'\n'";
+        let mut scanner = Scanner::new(
+            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
+            "sample.tc",
+            None,
+        );
+        assert_eq!(scanner.next_token().unwrap().kind, TokenKind::CharLiteral('\n'))
+    }
+
+    #[test]
+    fn fail_char_literal_overrun() {
+        const SAMPLE_DATA: &str = "'Hello world!";
+        let mut scanner = Scanner::new(
+            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
+            "sample.tc",
+            None,
+        );
+        assert!(scanner.next_token().is_err())
+    }
+    #[test]
+    fn fail_char_literal_unmatched() {
+        const SAMPLE_DATA: &str = "'a!";
+        let mut scanner = Scanner::new(
+            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
+            "sample.tc",
+            None,
+        );
+        assert!(scanner.next_token().is_err())
+    }
+
 }
