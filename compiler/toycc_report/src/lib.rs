@@ -9,7 +9,14 @@ pub enum ErrorKind {
     NoHelpError,
 }
 
-pub enum WarningKind {}
+pub enum WarningKind {
+    ParsingWarning {
+        file_name: String,
+        pos: (usize, usize),
+        len: usize,
+        source: Option<String>,
+    },
+}
 
 pub enum ReportLevel {
     Warning(WarningKind),
