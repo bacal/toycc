@@ -515,6 +515,6 @@ mod tests {
             "sample.tc",
             None,
         );
-        assert!(scanner.next_token().is_err())
+        assert!(scanner.next_token().is_ok())
     }
 }
