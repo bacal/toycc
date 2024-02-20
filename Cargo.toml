@@ -1,6 +1,6 @@
 [package]
 name = "toycc"
-authors = ["Bacal Mesfin <mesfinb2@vcu.edu>", ""]
+authors = ["Bacal Mesfin:<mesfinb2@vcu.edu>", "Yaqub Mukhtar:<mukhtaryw@vcu.edu>"]
 version = "0.1.0"
 edition = "2021"
 categories = ["compilers"]
