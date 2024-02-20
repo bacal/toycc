@@ -29,8 +29,6 @@ enum State {
     SciFirst,
 }
 
-struct Placeholder;
-
 pub struct Scanner<'a, S: Read + Seek> {
     stream_name: &'a str,
     pub stream: BufferedStream<S>,
@@ -112,7 +110,11 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                         '|' => self.change_state(State::Or, c),
                         '"' => self.change_state(State::String, c),
                         '\'' => self.change_state(State::CharLiteral, c),
-                        ';' => return Ok(self.create_token(TokenKind::Delimiter(Delimiter::Semicolon),1)),
+                        ';' => {
+                            return Ok(
+                                self.create_token(TokenKind::Delimiter(Delimiter::Semicolon), 1)
+                            )
+                        }
                         _ => {
                             return Err(self.create_error(
                                 ScannerErrorKind::IllegalCharacter(c),
@@ -155,38 +157,48 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     '+' | '-' => self.change_state(State::SciFirst, c),
                     _ => {
                         return Err(self.create_error(
-                            ScannerErrorKind::MalformedNumber("scientific number missing sign".to_string()),
+                            ScannerErrorKind::MalformedNumber(
+                                "scientific number missing sign".to_string(),
+                            ),
                             1,
                             Some("expected + or -".to_string()),
                         ))
                     }
                 },
 
-                State::FloatFirst => {
-                    match c{
-                        ('0'..='9') => self.change_state(State::Float, c),
-                        _ => return Err(self.create_error(
-                            ScannerErrorKind::MalformedNumber("missing digits after decimal".to_string()),
+                State::FloatFirst => match c {
+                    ('0'..='9') => self.change_state(State::Float, c),
+                    _ => {
+                        return Err(self.create_error(
+                            ScannerErrorKind::MalformedNumber(
+                                "missing digits after decimal".to_string(),
+                            ),
                             self.buffer.len(),
-                            Some("expected digit".to_string()))),
+                            Some("expected digit".to_string()),
+                        ))
                     }
-                }
+                },
 
-                State::SciFirst => {
-                    match c{
-                        ('0'..='9') => self.change_state(State::Scientific, c),
-                        _ => return Err(self.create_error(
-                            ScannerErrorKind::MalformedNumber("missing digits after sign".to_string()),
+                State::SciFirst => match c {
+                    ('0'..='9') => self.change_state(State::Scientific, c),
+                    _ => {
+                        return Err(self.create_error(
+                            ScannerErrorKind::MalformedNumber(
+                                "missing digits after sign".to_string(),
+                            ),
                             self.buffer.len(),
-                            Some("expected digit".to_string()))),
+                            Some("expected digit".to_string()),
+                        ))
                     }
-                }
-                State::Float |
-                State::Scientific => match c {
+                },
+                State::Float | State::Scientific => match c {
                     ('0'..='9') => self.push_char(c),
-                    _ => return Ok(self.create_token(
-                        TokenKind::Number(self.buffer.parse::<f64>().unwrap()),
-                        self.buffer.len()))
+                    _ => {
+                        return Ok(self.create_token(
+                            TokenKind::Number(self.buffer.parse::<f64>().unwrap()),
+                            self.buffer.len(),
+                        ))
+                    }
                 },
 
                 State::CommentStart => match c {
@@ -534,8 +546,8 @@ mod tests {
     }
 
     #[test]
-    fn test_everything(){
-        const SAMPLE_DATA : &str = r#"int char return if else for
+    fn test_everything() {
+        const SAMPLE_DATA: &str = r#"int char return if else for
                                     do while switch case default write
                                     read continue break newline
                                     a = 32; b = 32.; c7   =   99E+31"#;
@@ -561,6 +573,6 @@ mod tests {
                 }
             }
         }
-        println!("{:?}",tokens);
+        println!("{:?}", tokens);
     }
 }
