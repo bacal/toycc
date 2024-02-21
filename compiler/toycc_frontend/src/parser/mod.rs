@@ -20,13 +20,16 @@ impl<'a, S: Read + Seek> Parser<'a, S> {
     }
 
     pub fn parse(&mut self) -> Result<(), ParserError> {
-        if self.debug == Some(2) {
-            println!("[DEBUG]")
-        }
+        let mut tokens_read = 0;
         loop {
             if self.scanner.next_token()?.kind == TokenKind::Eof {
+                tokens_read+=1;
                 break;
             }
+            tokens_read+=1;
+        }
+        if self.debug.is_some() {
+            println!("[SCANNER] Total tokens: {tokens_read}");
         }
         Ok(())
     }

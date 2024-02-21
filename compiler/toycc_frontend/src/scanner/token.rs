@@ -213,7 +213,7 @@ impl Display for TokenKind {
             Self::Keyword(keyword) => {
                 _buf1 = keyword.to_string();
                 _buf2 = _buf1.to_lowercase();
-                (_buf1.as_str(), _buf1.as_str())
+                (_buf1.as_str(), _buf2.as_str())
             }
             Self::Identifier(id) => ("ID", id.as_str()),
             Self::Number(num) => {
