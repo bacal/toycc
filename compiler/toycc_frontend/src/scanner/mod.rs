@@ -372,13 +372,8 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                 State::CharLiteral => match c {
                     '\'' => {
                         return match self.buffer.len() {
-                            0 | 1 => Err(self.create_error(
-                                ScannerErrorKind::InvalidCharLiteral,
-                                0,
-                                None,
-                            )),
-                            2 => Ok(self.create_token(
-                                TokenKind::CharLiteral(self.buffer.chars().nth(1).unwrap()),
+                            (0..=2) => Ok(self.create_token(
+                                TokenKind::CharLiteral(self.buffer.chars().nth(1)),
                                 1,
                             )),
                             len => Err(self.create_error(
@@ -601,7 +596,7 @@ mod tests {
         );
         assert_eq!(
             scanner.next_token().unwrap().kind,
-            TokenKind::CharLiteral('\n')
+            TokenKind::CharLiteral(Some('\n'))
         )
     }
 

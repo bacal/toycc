@@ -62,7 +62,7 @@ pub enum TokenKind {
     Keyword(Keyword),
     Identifier(String),
     Number(f64),
-    CharLiteral(char),
+    CharLiteral(Option<char>),
     String(String),
     RelOP(RelOP),
     MulOP(MulOP),
@@ -221,7 +221,13 @@ impl Display for TokenKind {
                 ("NUMBER", _buf1.as_str())
             }
             Self::CharLiteral(c) => {
-                _buf1 = format!("'{}'", c);
+                _buf1 = format!(
+                    "'{}'",
+                    match c {
+                        Some(c) => c.escape_debug().to_string(),
+                        None => "".to_string(),
+                    }
+                );
                 ("CHAR_LITERAL", _buf1.as_str())
             }
             Self::String(string) => {
