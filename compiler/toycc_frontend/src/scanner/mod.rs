@@ -155,7 +155,12 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
 
                 State::Identifier => match c {
                     ('a'..='z') | ('A'..='Z') | ('0'..='9') => self.push_char(c),
-                    _ => return Ok(self.keyword_or_id_token()),
+                    _ => {
+                        if !" \t\n".contains(c) {
+                            self.position -= 1;
+                        }
+                        return Ok(self.keyword_or_id_token());
+                    }
                 },
 
                 State::Integer => match c {
@@ -165,7 +170,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     _ => {
                         return match self.buffer.parse::<f64>() {
                             Ok(num) => {
-                                if c != '\n' {
+                                if !" \t\n".contains(c) {
                                     self.position -= 1;
                                 }
                                 Ok(self.create_token(TokenKind::Number(num), self.buffer.len()))
@@ -224,10 +229,13 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     ('0'..='9') => self.push_char(c),
                     'E' => self.change_state(State::SciSign, c),
                     _ => {
+                        if !" \t\n".contains(c) {
+                            self.position -= 1;
+                        }
                         return Ok(self.create_token(
                             TokenKind::Number(self.buffer.parse::<f64>().unwrap()),
                             self.buffer.len(),
-                        ))
+                        ));
                     }
                 },
 
@@ -241,10 +249,13 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                         ))
                     }
                     _ => {
+                        if !" \t\n".contains(c) {
+                            self.position -= 1;
+                        }
                         return Ok(self.create_token(
                             TokenKind::Number(self.buffer.parse::<f64>().unwrap()),
                             self.buffer.len(),
-                        ))
+                        ));
                     }
                 },
 
@@ -257,7 +268,12 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                         self.change_state(State::CommentEat, c);
                         self.comments_nested.push((self.lines_read, self.position));
                     }
-                    _ => return Ok(self.create_token(TokenKind::MulOP(MulOP::Divide), 1)),
+                    _ => {
+                        if !" \t\n".contains(c) {
+                            self.position -= 1;
+                        }
+                        return Ok(self.create_token(TokenKind::MulOP(MulOP::Divide), 1));
+                    }
                 },
 
                 State::CommentNested => {
@@ -316,13 +332,24 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                             "=" => Ok(self.create_token(TokenKind::RelOP(RelOP::EqualsEquals), 2)),
                             _ => Err(self.create_error(ScannerErrorKind::InvalidRelOp, 1, None)),
                         },
-                        _ => match self.buffer.as_str() {
-                            "<" => Ok(self.create_token(TokenKind::RelOP(RelOP::LessThan), 1)),
-                            ">" => Ok(self.create_token(TokenKind::RelOP(RelOP::GreaterThan), 1)),
-                            "!" => Ok(self.create_token(TokenKind::Delimiter(Delimiter::Not), 1)),
-                            "=" => Ok(self.create_token(TokenKind::AssignOP, 1)),
-                            _ => Err(self.create_error(ScannerErrorKind::InvalidRelOp, 1, None)),
-                        },
+                        _ => {
+                            if !" \t\n".contains(c) {
+                                self.position -= 1;
+                            }
+                            match self.buffer.as_str() {
+                                "<" => Ok(self.create_token(TokenKind::RelOP(RelOP::LessThan), 1)),
+                                ">" => {
+                                    Ok(self.create_token(TokenKind::RelOP(RelOP::GreaterThan), 1))
+                                }
+                                "!" => {
+                                    Ok(self.create_token(TokenKind::Delimiter(Delimiter::Not), 1))
+                                }
+                                "=" => Ok(self.create_token(TokenKind::AssignOP, 1)),
+                                _ => {
+                                    Err(self.create_error(ScannerErrorKind::InvalidRelOp, 1, None))
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -452,7 +479,6 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
 #[cfg(test)]
 mod tests {
     use super::Scanner;
-    use crate::scanner::error::ScannerErrorKind;
     use crate::scanner::token::{MulOP, RelOP};
     use crate::{
         scanner::token::{AddOP, Keyword, Token, TokenKind},
