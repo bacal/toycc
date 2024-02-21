@@ -61,8 +61,8 @@ pub enum Delimiter {
 pub enum TokenKind {
     Keyword(Keyword),
     Identifier(String),
-    Number(f64),
-    CharLiteral(char),
+    Number { num: f64, sci: bool },
+    CharLiteral(Option<char>),
     String(String),
     RelOP(RelOP),
     MulOP(MulOP),
@@ -213,15 +213,24 @@ impl Display for TokenKind {
             Self::Keyword(keyword) => {
                 _buf1 = keyword.to_string();
                 _buf2 = _buf1.to_lowercase();
-                (_buf1.as_str(), _buf1.as_str())
+                (_buf1.as_str(), _buf2.as_str())
             }
             Self::Identifier(id) => ("ID", id.as_str()),
-            Self::Number(num) => {
-                _buf1 = num.to_string();
+            Self::Number { num, sci } => {
+                _buf1 = match sci {
+                    true => format!("{:E}", num),
+                    false => num.to_string(),
+                };
                 ("NUMBER", _buf1.as_str())
             }
             Self::CharLiteral(c) => {
-                _buf1 = format!("'{}'", c);
+                _buf1 = format!(
+                    "'{}'",
+                    match c {
+                        Some(c) => c.escape_debug().to_string(),
+                        None => "".to_string(),
+                    }
+                );
                 ("CHAR_LITERAL", _buf1.as_str())
             }
             Self::String(string) => {
