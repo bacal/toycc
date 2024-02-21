@@ -6,6 +6,10 @@ pub enum ScannerErrorKind {
     MalformedNumber(String),
     InvalidCharLiteral,
     InvalidStringLiteral,
+    UnterminatedComment,
+    InvalidRelOp,
+    InvalidMulOp,
+    InvalidAddOp,
 }
 
 #[derive(Debug, Report, PartialEq)]
@@ -41,12 +45,16 @@ impl ScannerError {
 impl Diagnostic for ScannerError {
     fn info(&self) -> String {
         match &self.kind {
+            ScannerErrorKind::UnterminatedComment => "unterminated /* comment".to_string(),
             ScannerErrorKind::IllegalCharacter(c) => {
                 format!("illegal character: '{}'", c.escape_debug())
             }
             ScannerErrorKind::MalformedNumber(c) => c.to_string(),
             ScannerErrorKind::InvalidCharLiteral => "invalid char literal".to_string(),
             ScannerErrorKind::InvalidStringLiteral => "invalid string literal".to_string(),
+            ScannerErrorKind::InvalidRelOp => "invalid relational operator".to_string(),
+            ScannerErrorKind::InvalidMulOp => "invalid mulop".to_string(),
+            ScannerErrorKind::InvalidAddOp => "invalid addop".to_string(),
         }
     }
 
@@ -71,10 +79,9 @@ impl Diagnostic for ScannerError {
 
     fn help(&self) -> Option<String> {
         match self.kind {
-            ScannerErrorKind::IllegalCharacter(_) => None,
-            ScannerErrorKind::MalformedNumber(_) => <Option<String> as Clone>::clone(&self.help),
-            ScannerErrorKind::InvalidCharLiteral => None,
-            ScannerErrorKind::InvalidStringLiteral => None,
+            ScannerErrorKind::InvalidMulOp => Some("expected &".to_string()),
+            ScannerErrorKind::InvalidAddOp => Some("expected |".to_string()),
+            _ => <Option<String> as Clone>::clone(&self.help),
         }
     }
 
