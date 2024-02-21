@@ -23,10 +23,10 @@ impl<'a, S: Read + Seek> Parser<'a, S> {
         let mut tokens_read = 0;
         loop {
             if self.scanner.next_token()?.kind == TokenKind::Eof {
-                tokens_read+=1;
+                tokens_read += 1;
                 break;
             }
-            tokens_read+=1;
+            tokens_read += 1;
         }
         if self.debug.is_some() {
             println!("[SCANNER] Total tokens: {tokens_read}");
