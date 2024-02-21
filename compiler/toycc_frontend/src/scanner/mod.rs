@@ -14,7 +14,7 @@ enum State {
     Identifier,
     Integer,
     Scientific,
-    Sign,
+    SciSign,
     Float,
     And,
     Or,
@@ -37,7 +37,7 @@ pub struct Scanner<'a, S: Read + Seek> {
     position: usize,
     debug: Option<u32>,
     lines_read: usize,
-    comments_nested: usize,
+    comments_nested: Vec<(usize, usize)>,
     previous_location: (usize, usize),
 }
 
@@ -49,7 +49,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
             state: State::Initial,
             buffer: String::new(),
             lines_read: 0,
-            comments_nested: 0,
+            comments_nested: vec![],
             stream_name,
             position: 0,
             previous_location: (0, 0),
@@ -160,7 +160,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
 
                 State::Integer => match c {
                     ('0'..='9') => self.push_char(c),
-                    'E' => self.change_state(State::Sign, c),
+                    'E' => self.change_state(State::SciSign, c),
                     '.' => self.change_state(State::FloatFirst, c),
                     _ => {
                         return match self.buffer.parse::<f64>() {
@@ -181,15 +181,16 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                         }
                     }
                 },
-                State::Sign => match c {
+                State::SciSign => match c {
                     '+' | '-' => self.change_state(State::SciFirst, c),
+                    ('0'..='9') => self.change_state(State::Scientific, c),
                     _ => {
                         return Err(self.create_error(
                             ScannerErrorKind::MalformedNumber(
-                                "scientific number missing sign".to_string(),
+                                "scientific number missing sign or digit".to_string(),
                             ),
                             1,
-                            Some("expected + or -".to_string()),
+                            Some("expected +, -, or digit".to_string()),
                         ))
                     }
                 },
@@ -219,8 +220,26 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                         ))
                     }
                 },
-                State::Float | State::Scientific => match c {
+                State::Float => match c {
                     ('0'..='9') => self.push_char(c),
+                    'E' => self.change_state(State::SciSign, c),
+                    _ => {
+                        return Ok(self.create_token(
+                            TokenKind::Number(self.buffer.parse::<f64>().unwrap()),
+                            self.buffer.len(),
+                        ))
+                    }
+                },
+
+                State::Scientific => match c {
+                    ('0'..='9') => self.push_char(c),
+                    'E' => {
+                        return Err(self.create_error(
+                            ScannerErrorKind::MalformedNumber("duplicate E is invalid".to_string()),
+                            1,
+                            None,
+                        ))
+                    }
                     _ => {
                         return Ok(self.create_token(
                             TokenKind::Number(self.buffer.parse::<f64>().unwrap()),
@@ -236,25 +255,27 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                     }
                     '*' => {
                         self.change_state(State::CommentEat, c);
-                        self.comments_nested += 1;
+                        self.comments_nested.push((self.lines_read, self.position));
                     }
                     _ => return Ok(self.create_token(TokenKind::MulOP(MulOP::Divide), 1)),
                 },
 
                 State::CommentNested => {
                     if c == '*' {
-                        self.comments_nested += 1;
+                        self.comments_nested.push((self.lines_read, self.position));
                     }
                     self.state = State::CommentEat;
                 }
 
                 State::CommentEnd => {
                     match c {
-                        '/' => self.comments_nested -= 1,
+                        '/' => {
+                            self.comments_nested.pop();
+                        }
                         _ => self.state = State::CommentEat,
                     }
 
-                    match self.comments_nested {
+                    match self.comments_nested.len() {
                         0 => self.state = State::Initial,
                         _ => self.state = State::CommentEat,
                     }
@@ -273,7 +294,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                 State::And => {
                     return match c {
                         '&' => Ok(self.create_token(TokenKind::MulOP(MulOP::And), 2)),
-                        _ => Err(self.create_error(ScannerErrorKind::IllegalCharacter(c), 0, None)),
+                        _ => Err(self.create_error(ScannerErrorKind::InvalidMulOp, 1, None)),
                     }
                 }
 
@@ -282,7 +303,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                         '|' => {
                             Ok(self.create_token(TokenKind::AddOP(AddOP::Or), self.buffer.len()))
                         }
-                        _ => Err(self.create_error(ScannerErrorKind::IllegalCharacter(c), 0, None)),
+                        _ => Err(self.create_error(ScannerErrorKind::InvalidAddOp, 1, None)),
                     }
                 }
 
@@ -293,22 +314,14 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                             ">" => Ok(self.create_token(TokenKind::RelOP(RelOP::GreaterEqual), 2)),
                             "!" => Ok(self.create_token(TokenKind::RelOP(RelOP::NotEquals), 2)),
                             "=" => Ok(self.create_token(TokenKind::RelOP(RelOP::EqualsEquals), 2)),
-                            _ => Err(self.create_error(
-                                ScannerErrorKind::IllegalCharacter('a'),
-                                1,
-                                None,
-                            )),
+                            _ => Err(self.create_error(ScannerErrorKind::InvalidRelOp, 1, None)),
                         },
                         _ => match self.buffer.as_str() {
                             "<" => Ok(self.create_token(TokenKind::RelOP(RelOP::LessThan), 1)),
                             ">" => Ok(self.create_token(TokenKind::RelOP(RelOP::GreaterThan), 1)),
                             "!" => Ok(self.create_token(TokenKind::Delimiter(Delimiter::Not), 1)),
                             "=" => Ok(self.create_token(TokenKind::AssignOP, 1)),
-                            _ => Err(self.create_error(
-                                ScannerErrorKind::IllegalCharacter('a'),
-                                1,
-                                None,
-                            )),
+                            _ => Err(self.create_error(ScannerErrorKind::InvalidRelOp, 1, None)),
                         },
                     }
                 }
@@ -363,10 +376,18 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
             }
         }
         // When we run out of data in our source stream we return the EOF token
-        Ok(self.create_token(TokenKind::Eof, 0))
+        match self.comments_nested.len() {
+            0 => Ok(self.create_token(TokenKind::Eof, 0)),
+            _ => Err(self.create_error(ScannerErrorKind::UnterminatedComment, 1, None)),
+        }
     }
 
-    pub fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
+    fn create_token_advance(&mut self, kind: TokenKind, len: usize) -> Token{
+        self.position += 1;
+        self.previous_location = (self.lines_read, self.position + 1);
+        self.create_token(kind,len)
+    }
+    fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
         let token = Token::new(kind, len, (self.lines_read, self.position));
         if self.debug.is_some() {
             println!("[SCANNER] {token}")
@@ -374,6 +395,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
         self.previous_location = (self.lines_read, self.position + 1);
         self.state = State::Initial;
         self.position += 1;
+
         token
     }
     fn create_error(
@@ -383,15 +405,22 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
         help: Option<String>,
     ) -> ScannerError {
         let location = match kind {
-            ScannerErrorKind::IllegalCharacter(_) => (self.lines_read, self.position + 1),
-            _ => self.previous_location,
+            ScannerErrorKind::UnterminatedComment => self.comments_nested.pop().unwrap(),
+            _ => {
+                if (self.lines_read, self.position) != self.previous_location{
+                    (self.previous_location.0,self.previous_location.1+1)
+                }
+                else {
+                    (self.lines_read, self.position+1)
+                }
+            },
         };
         let line = match kind {
-            ScannerErrorKind::MalformedNumber(_) => {
+            ScannerErrorKind::IllegalCharacter(_) => None,
+            _ => {
                 let _ = self.stream.rewind();
-                Some(self.stream.nth(location.0 - 1).unwrap())
+                Some(self.stream.nth(location.0 - 1).unwrap().trim().to_string())
             }
-            _ => None,
         };
         ScannerError::new(
             kind,
@@ -429,6 +458,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
 #[cfg(test)]
 mod tests {
     use super::Scanner;
+    use crate::scanner::error::ScannerErrorKind;
     use crate::scanner::token::{MulOP, RelOP};
     use crate::{
         scanner::token::{AddOP, Keyword, Token, TokenKind},
@@ -581,7 +611,11 @@ mod tests {
         const SAMPLE_DATA: &str = r#"int char return if else for
                                     do while switch case default write
                                     read continue break newline
-                                    a = 32; b = 32.0; c7   =   99E+31"#;
+                                    a = 32; b = 32.0; c7   =   99E+31
+                                    // This is a comment
+                                    /* multiline
+                                    comment */
+                                    f = 2.0E+1E3"#;
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
@@ -605,5 +639,18 @@ mod tests {
             }
         }
         println!("{:?}", tokens);
+    }
+
+    #[test]
+    fn test_number_invalid_exp() {
+        const SAMPLE_DATA: &str = r#"2E+1E1"#;
+        let mut scanner = Scanner::new(
+            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
+            "sample.tc",
+            None,
+        );
+        let mut t = scanner.next_token();
+        t = scanner.next_token();
+        assert!(t.is_err())
     }
 }
