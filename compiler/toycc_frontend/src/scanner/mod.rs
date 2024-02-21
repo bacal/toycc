@@ -382,11 +382,6 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
         }
     }
 
-    fn create_token_advance(&mut self, kind: TokenKind, len: usize) -> Token{
-        self.position += 1;
-        self.previous_location = (self.lines_read, self.position + 1);
-        self.create_token(kind,len)
-    }
     fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
         let token = Token::new(kind, len, (self.lines_read, self.position));
         if self.debug.is_some() {
@@ -407,13 +402,12 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
         let location = match kind {
             ScannerErrorKind::UnterminatedComment => self.comments_nested.pop().unwrap(),
             _ => {
-                if (self.lines_read, self.position) != self.previous_location{
-                    (self.previous_location.0,self.previous_location.1+1)
+                if (self.lines_read, self.position) != self.previous_location {
+                    (self.previous_location.0, self.previous_location.1 + 1)
+                } else {
+                    (self.lines_read, self.position + 1)
                 }
-                else {
-                    (self.lines_read, self.position+1)
-                }
-            },
+            }
         };
         let line = match kind {
             ScannerErrorKind::IllegalCharacter(_) => None,

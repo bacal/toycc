@@ -78,10 +78,10 @@ impl Diagnostic for ScannerError {
     }
 
     fn help(&self) -> Option<String> {
-        match self.kind{
+        match self.kind {
             ScannerErrorKind::InvalidMulOp => Some("expected &".to_string()),
             ScannerErrorKind::InvalidAddOp => Some("expected |".to_string()),
-            _ => <Option<String> as Clone>::clone(&self.help)
+            _ => <Option<String> as Clone>::clone(&self.help),
         }
     }
 
