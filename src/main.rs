@@ -32,7 +32,7 @@ fn main() {
         Err(_) => handle_error(Error::FileNotFound(args.file_names[0].clone())),
     };
 
-    let mut parser = Parser::new(&file, args.file_names[0].as_str(), args.debug);
+    let mut parser = Parser::new(&file, args.file_names[0].as_str(), args.debug, args.verbose);
     match parser.parse() {
         Ok(()) => {}
         Err(e) => handle_error(e),

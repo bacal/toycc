@@ -39,12 +39,19 @@ pub struct Scanner<'a, S: Read + Seek> {
     lines_read: usize,
     comments_nested: Vec<(usize, usize)>,
     previous_location: (usize, usize),
+    verbose: bool,
 }
 
 impl<'a, S: Read + Seek> Scanner<'a, S> {
-    pub fn new(stream: BufferedStream<S>, stream_name: &'a str, debug: Option<u32>) -> Self {
+    pub fn new(
+        stream: BufferedStream<S>,
+        stream_name: &'a str,
+        debug: Option<u32>,
+        verbose: bool,
+    ) -> Self {
         Self {
             debug,
+            verbose,
             stream,
             state: State::Initial,
             buffer: String::new(),
@@ -173,7 +180,10 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                                 if !" \t\n".contains(c) {
                                     self.position -= 1;
                                 }
-                                Ok(self.create_token(TokenKind::Number(num), self.buffer.len()))
+                                Ok(self.create_token(
+                                    TokenKind::Number { num, sci: false },
+                                    self.buffer.len(),
+                                ))
                             }
                             Err(_) => Err(self.create_error(
                                 ScannerErrorKind::MalformedNumber(format!(
@@ -233,7 +243,10 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                             self.position -= 1;
                         }
                         return Ok(self.create_token(
-                            TokenKind::Number(self.buffer.parse::<f64>().unwrap()),
+                            TokenKind::Number {
+                                num: self.buffer.parse::<f64>().unwrap(),
+                                sci: false,
+                            },
                             self.buffer.len(),
                         ));
                     }
@@ -253,7 +266,10 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                             self.position -= 1;
                         }
                         return Ok(self.create_token(
-                            TokenKind::Number(self.buffer.parse::<f64>().unwrap()),
+                            TokenKind::Number {
+                                num: self.buffer.parse::<f64>().unwrap(),
+                                sci: true,
+                            },
                             self.buffer.len(),
                         ));
                     }
@@ -406,7 +422,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
 
     fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
         let token = Token::new(kind, len, (self.lines_read, self.position));
-        if self.debug.is_some() {
+        if self.debug.is_some() || self.verbose {
             println!("[SCANNER] {token}")
         }
         self.previous_location = (self.lines_read, self.position + 1);
@@ -488,16 +504,33 @@ mod tests {
             BufferedStream::new(Cursor::new(data.as_bytes())),
             "name.tc",
             None,
+            false,
         );
 
         let mut t = scanner.next_token();
-        assert_eq!(t, Ok(Token::new(TokenKind::Number(3.0), 1, (1, 0))));
+        assert_eq!(
+            t,
+            Ok(Token::new(
+                TokenKind::Number {
+                    num: 3.0,
+                    sci: false
+                },
+                1,
+                (1, 0)
+            ))
+        );
 
         t = scanner.next_token();
         assert_eq!(t.unwrap().kind, TokenKind::AddOP(AddOP::Plus));
         //
         t = scanner.next_token();
-        assert_eq!(t.unwrap().kind, TokenKind::Number(3.0));
+        assert_eq!(
+            t.unwrap().kind,
+            TokenKind::Number {
+                num: 3.0,
+                sci: false
+            }
+        );
     }
 
     #[test]
@@ -512,6 +545,7 @@ mod tests {
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
+            false,
         );
         let mut tokens = vec![];
         loop {
@@ -539,7 +573,10 @@ mod tests {
                 TokenKind::Keyword(Keyword::While),
                 TokenKind::RelOP(RelOP::LessEqual),
                 TokenKind::RelOP(RelOP::NotEquals),
-                TokenKind::Number(123.into()),
+                TokenKind::Number {
+                    num: 123.0,
+                    sci: false
+                },
                 TokenKind::String("hello".to_string()),
                 TokenKind::MulOP(MulOP::Multiply),
                 TokenKind::Eof
@@ -554,6 +591,7 @@ mod tests {
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
+            false,
         );
         assert_eq!(
             scanner.next_token().unwrap().kind,
@@ -568,6 +606,7 @@ mod tests {
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
+            false,
         );
         assert_eq!(
             scanner.next_token().unwrap().kind,
@@ -582,6 +621,7 @@ mod tests {
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
+            false,
         );
         assert!(scanner.next_token().is_err())
     }
@@ -593,6 +633,7 @@ mod tests {
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
+            false,
         );
         assert_eq!(
             scanner.next_token().unwrap().kind,
@@ -607,6 +648,7 @@ mod tests {
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
+            false,
         );
         assert!(scanner.next_token().is_err())
     }
@@ -617,6 +659,7 @@ mod tests {
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
+            false,
         );
         assert!(scanner.next_token().is_err())
     }
@@ -635,6 +678,7 @@ mod tests {
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
+            false,
         );
         let mut tokens = vec![];
         loop {
@@ -663,6 +707,7 @@ mod tests {
             BufferedStream::new(Cursor::new(SAMPLE_DATA)),
             "sample.tc",
             None,
+            false,
         );
         let mut t = scanner.next_token();
         t = scanner.next_token();
