@@ -98,7 +98,7 @@ impl Arguments {
             match token {
                 Token::Argument(Argument::Debug) => match tokens.next() {
                     Some(Token::Number(num)) => match num {
-                        0 | 1 => args.debug = Some(num),
+                        (0..=3) => args.debug = Some(num),
                         _ => return Err(ArgumentParseError::InvalidDebug(num)),
                     },
                     _ => return Err(ArgumentParseError::MissingValue("debug")),
@@ -161,6 +161,7 @@ fn scan_tokens(input: &str) -> Result<Vec<Token>, ArgumentParseError> {
                         tokens.push(Token::Number(buffer.parse::<u32>().unwrap()));
                         state = ScannerState::Initial;
                     }
+                    ('0'..='9') => {}
                     _ => state = ScannerState::Positional,
                 }
                 buffer.push(c);
@@ -251,10 +252,11 @@ mod scanner_tests {
     #[test]
     fn test_positional2() {
         assert_eq!(
-            scan_tokens("2a.c -debug a223.c"),
+            scan_tokens("2a.c -debug 9999 a223.c"),
             Ok(vec![
                 Token::Argument(Argument::Positional("2a.c".to_string())),
                 Token::Argument(Argument::Debug),
+                Token::Number(9999),
                 Token::Argument(Argument::Positional("a223.c".to_string())),
                 Token::Eos
             ])

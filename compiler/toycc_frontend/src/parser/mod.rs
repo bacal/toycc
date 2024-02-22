@@ -1,5 +1,5 @@
-pub mod error;
 mod ast;
+pub mod error;
 
 use crate::parser::error::ParserError;
 use crate::scanner::token::TokenKind;

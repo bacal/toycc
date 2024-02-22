@@ -3,7 +3,7 @@ type Type = String;
 type VarDef = (Identifier, Vec<Identifier>, Type);
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Operator{
+pub enum Operator {
     Add,
     Sub,
     Mul,
@@ -19,7 +19,7 @@ pub enum Operator{
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expression{
+pub enum Expression {
     Number(f64),
     Identifier(Identifier),
     CharLiteral(Option<char>),
@@ -32,7 +32,7 @@ pub enum Expression{
 
 #[derive(Debug, Clone, PartialEq)]
 #[allow(clippy::enum_variant_names)]
-pub enum Statement{
+pub enum Statement {
     ExprState(Expression),
     BreakState,
     BlockState(Vec<VarDef>, Vec<Statement>),
@@ -40,13 +40,13 @@ pub enum Statement{
     NullState,
     ReturnState(Option<Expression>),
     WhileState(Expression, Box<Statement>),
-    ReadState(Identifier,Vec<Identifier>),
+    ReadState(Identifier, Vec<Identifier>),
     WriteState(Expression, Vec<Expression>),
     NewLineState,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Definition{
+pub enum Definition {
     FuncDef(Identifier, Type, Vec<VarDef>, Statement),
     VarDef(VarDef),
 }

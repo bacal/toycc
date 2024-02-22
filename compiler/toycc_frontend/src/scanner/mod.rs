@@ -142,7 +142,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                             return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1))
                         }
                         '}' => {
-                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1))
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::RCurly), 1))
                         }
                         ':' => {
                             return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))

@@ -93,6 +93,11 @@ pub fn derive_report(input: TokenStream) -> TokenStream {
                     buffer.push('\n');
                     buffer+=c.message().as_str();
                     d = c.others();
+                    if let Some(e) = d{
+                        if e.others().is_none(){
+                            break;
+                        }
+                    }
                 }
                 buffer
             }

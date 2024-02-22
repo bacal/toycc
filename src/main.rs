@@ -11,10 +11,7 @@ use toycc_report::{Diagnostic, Report};
 fn main() {
     let args = match Arguments::parse() {
         Ok(args) => args,
-        Err(e) => {
-            println!("{e}");
-            exit(1)
-        }
+        Err(e) => handle_error(e),
     };
     if args.help {
         Arguments::print_usage();
