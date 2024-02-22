@@ -423,7 +423,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
     fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
         let token = Token::new(kind, len, (self.lines_read, self.position));
         if self.debug.is_some() || self.verbose {
-            println!("[SCANNER] {token}")
+            println!("[SCANNER] token {token}")
         }
         self.previous_location = (self.lines_read, self.position + 1);
         self.state = State::Initial;

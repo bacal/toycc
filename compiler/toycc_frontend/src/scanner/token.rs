@@ -253,6 +253,6 @@ impl Display for TokenKind {
             Self::Eof => ("EOF", "EOF"),
             Self::Delimiter(del) => del.clone().into(),
         };
-        write!(f, "(<{}>,\"{}\")", pair.0, pair.1)
+        write!(f, "{} {}", pair.0, pair.1)
     }
 }

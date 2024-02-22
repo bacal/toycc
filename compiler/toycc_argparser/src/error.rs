@@ -4,8 +4,9 @@ const DEBUG_USAGE: &str = r"-debug <level>  0 - all messages
 #[derive(Report, Debug, Eq, PartialEq)]
 pub enum ArgumentParseError {
     UnknownArgument(String),
+    ExtraPositional(String),
     InvalidDebug(u32),
-    MissingValue,
+    MissingValue(&'static str),
     Usage(&'static str),
 }
 
@@ -13,8 +14,9 @@ impl Diagnostic for ArgumentParseError {
     fn info(&self) -> String {
         match self {
             Self::UnknownArgument(arg) => format!("unknown argument -{arg}"),
+            Self::ExtraPositional(arg) => format!("unknown argument {arg}"),
             Self::InvalidDebug(num) => format!("invalid option for debug '{num}'"),
-            Self::MissingValue => "missing value for -debug".to_string(),
+            Self::MissingValue(arg) => format!("missing value for -{arg}"),
             Self::Usage(_) => "usage".to_string(),
         }
     }

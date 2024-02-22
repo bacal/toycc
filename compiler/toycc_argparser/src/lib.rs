@@ -6,22 +6,36 @@ use itertools::Itertools;
 use std::env::args;
 
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
-const DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
-const USAGE: &str = r"toycc [options] [input]...";
+const USAGE: &str = r"toycc [options] input_file";
 const OPTIONS: &str = r#"
-  -debug <level>  Display messages that aid in tracing the compilation process.
-                       0 - all messages
-                       1 - scanner messages only
-  -verbose        Display all information
-  -help           Print help"#;
+    -help               display a usage message
+    -output <file>      specifies target file name
+    -class  <file>      specifies class file name
+    -debug  <level>     display messages that aid in tracing the
+                        compilation process. If level is:
+                            0 - all messages
+                            1 - scanner messages only
+                            2 - parser messages only
+                            3 - code generation messages only
+    -abstract           dump the abstract syntax tree
+    -symbol             dump the symbol table(s)
+    -code               dump the generated program
+    -verbose            display all information
+    -version            display the program version"#;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Default)]
 pub struct Arguments {
     pub help: bool,
     pub authors: bool,
     pub debug: Option<u32>,
+    pub class: Option<String>,
+    pub output: Option<String>,
+    pub dump_ast: bool,
+    pub dump_sym: bool,
+    pub dump_cgn: bool,
+    pub version: bool,
     pub verbose: bool,
-    pub file_names: Vec<String>,
+    pub file_name: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -31,6 +45,12 @@ enum Argument {
     Debug,
     Verbose,
     Positional(String),
+    DumpAST,
+    DumpSYM,
+    DumpCGN,
+    Version,
+    Class,
+    Output,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -50,29 +70,29 @@ enum ScannerState {
 impl Arguments {
     pub fn print_usage() {
         println!(
-            "{}: {USAGE}\n\n{DESCRIPTION}\n\n{}\n\n{}: {OPTIONS}",
+            "{}: {USAGE}\n\n{}: {OPTIONS}\n{}",
             "Usage".white().bold(),
-            Self::authors_string(),
-            "Options".white().bold()
+            "Options".white().bold(),
+            Self::contacts_string(),
         );
     }
     fn authors_string() -> String {
         let authors = AUTHORS.split(':').filter(|s| !s.contains('<')).join(", ");
         format!("{}: {authors}", "Authors".white().bold())
     }
+
+    fn contacts_string() -> String {
+        let authors = AUTHORS.split(':').filter(|s| s.contains('<')).join(", ");
+        format!("Send bug reports to: {authors}")
+    }
+
     pub fn print_authors() {
         println!("{}: {}", "toycc".white().bold(), Self::authors_string())
     }
 
     pub fn parse() -> Result<Self, ArgumentParseError> {
         let input = args().skip(1).join(" ");
-        let mut args = Arguments {
-            help: false,
-            authors: false,
-            debug: None,
-            verbose: false,
-            file_names: vec![],
-        };
+        let mut args = Arguments::default();
         let mut tokens = scan_tokens(&input)?.into_iter();
         while let Some(token) = tokens.next() {
             match token {
@@ -81,14 +101,32 @@ impl Arguments {
                         0 | 1 => args.debug = Some(num),
                         _ => return Err(ArgumentParseError::InvalidDebug(num)),
                     },
-                    _ => return Err(ArgumentParseError::MissingValue),
+                    _ => return Err(ArgumentParseError::MissingValue("debug")),
                 },
                 Token::Argument(Argument::Authors) => args.authors = true,
                 Token::Argument(Argument::Verbose) => args.verbose = true,
                 Token::Argument(Argument::Help) => args.help = true,
-                Token::Argument(Argument::Positional(s)) => args.file_names.push(s.clone()),
+                Token::Number(s) => match args.file_name {
+                    Some(_) => return Err(ArgumentParseError::UnknownArgument(s.to_string())),
+                    None => args.file_name = Some(s.to_string()),
+                },
+                Token::Argument(Argument::Positional(s)) => match args.file_name {
+                    Some(_) => return Err(ArgumentParseError::ExtraPositional(s.clone())),
+                    None => args.file_name = Some(s.clone()),
+                },
+                Token::Argument(Argument::DumpAST) => args.dump_ast = true,
+                Token::Argument(Argument::DumpSYM) => args.dump_sym = true,
+                Token::Argument(Argument::DumpCGN) => args.dump_cgn = true,
+                Token::Argument(Argument::Version) => args.version = true,
+                Token::Argument(Argument::Class) => match tokens.next() {
+                    Some(Token::Argument(Argument::Positional(s))) => args.class = Some(s.clone()),
+                    _ => return Err(ArgumentParseError::MissingValue("class")),
+                },
+                Token::Argument(Argument::Output) => match tokens.next() {
+                    Some(Token::Argument(Argument::Positional(s))) => args.output = Some(s.clone()),
+                    _ => return Err(ArgumentParseError::MissingValue("output")),
+                },
                 Token::Eos => {}
-                Token::Number(n) => args.file_names.push(n.to_string()),
             }
         }
         Ok(args)
@@ -149,6 +187,25 @@ fn scan_tokens(input: &str) -> Result<Vec<Token>, ArgumentParseError> {
     Ok(tokens)
 }
 
+impl TryFrom<&str> for Argument {
+    type Error = ArgumentParseError;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "debug" => Ok(Argument::Debug),
+            "verbose" => Ok(Argument::Verbose),
+            "help" => Ok(Argument::Help),
+            "authors" => Ok(Argument::Authors),
+            "abstract" => Ok(Argument::DumpAST),
+            "symbol" => Ok(Argument::DumpSYM),
+            "code" => Ok(Argument::DumpCGN),
+            "version" => Ok(Argument::Version),
+            "class" => Ok(Argument::Class),
+            "output" => Ok(Argument::Output),
+            _ => Err(ArgumentParseError::UnknownArgument(value.to_string())),
+        }
+    }
+}
+
 #[cfg(test)]
 mod scanner_tests {
     use super::{scan_tokens, Argument, Token};
@@ -202,18 +259,5 @@ mod scanner_tests {
                 Token::Eos
             ])
         )
-    }
-}
-
-impl TryFrom<&str> for Argument {
-    type Error = ArgumentParseError;
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "debug" => Ok(Argument::Debug),
-            "verbose" => Ok(Argument::Verbose),
-            "help" => Ok(Argument::Help),
-            "authors" => Ok(Argument::Authors),
-            _ => Err(ArgumentParseError::UnknownArgument(value.to_string())),
-        }
     }
 }

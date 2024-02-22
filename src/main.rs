@@ -24,15 +24,20 @@ fn main() {
         Arguments::print_authors();
         exit(0)
     }
-    if args.file_names.is_empty() {
+    if args.file_name.is_none() {
         handle_error(Error::MissingInput);
     }
-    let file = match File::open(&args.file_names[0]) {
+    let file = match File::open(args.file_name.as_ref().unwrap()) {
         Ok(file) => file,
-        Err(_) => handle_error(Error::FileNotFound(args.file_names[0].clone())),
+        Err(_) => handle_error(Error::FileNotFound(args.file_name.unwrap())),
     };
 
-    let mut parser = Parser::new(&file, args.file_names[0].as_str(), args.debug, args.verbose);
+    let mut parser = Parser::new(
+        &file,
+        args.file_name.as_ref().unwrap().as_str(),
+        args.debug,
+        args.verbose,
+    );
     match parser.parse() {
         Ok(()) => {}
         Err(e) => handle_error(e),
