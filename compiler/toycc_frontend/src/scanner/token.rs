@@ -27,14 +27,12 @@ pub enum MulOP {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
     Break,
-    Char,
     Case,
     Continue,
     Default,
     Do,
     Else,
     For,
-    Int,
     If,
     Newline,
     Return,
@@ -43,6 +41,13 @@ pub enum Keyword {
     While,
     Write,
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    Int,
+    Char,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Delimiter {
     LParen,
@@ -60,6 +65,7 @@ pub enum Delimiter {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     Keyword(Keyword),
+    Type(Type),
     Identifier(String),
     Number { num: f64, sci: bool },
     CharLiteral(Option<char>),
@@ -76,16 +82,11 @@ pub enum TokenKind {
 pub struct Token {
     pub kind: TokenKind,
     pub len: usize,
-    pub location: (usize, usize),
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, len: usize, location: (usize, usize)) -> Self {
-        Self {
-            kind,
-            len,
-            location,
-        }
+    pub fn new(kind: TokenKind, len: usize) -> Self {
+        Self { kind, len }
     }
 }
 
@@ -146,8 +147,6 @@ impl Display for Keyword {
             f,
             "{}",
             match self {
-                Self::Int => "INT",
-                Self::Char => "CHAR",
                 Self::Return => "RETURN",
                 Self::If => "IF",
                 Self::Else => "ELSE",
@@ -205,6 +204,19 @@ impl<'a> From<Delimiter> for (&'a str, &'a str) {
     }
 }
 
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Type::Int => "INT",
+                Type::Char => "CHAR",
+            }
+        )
+    }
+}
+
 impl Display for TokenKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let _buf1;
@@ -252,6 +264,11 @@ impl Display for TokenKind {
             Self::AssignOP => ("ASSIGNOP", "="),
             Self::Eof => ("EOF", "EOF"),
             Self::Delimiter(del) => del.clone().into(),
+            TokenKind::Type(t) => {
+                _buf1 = t.to_string();
+                _buf2 = _buf1.to_lowercase();
+                (_buf1.as_str(), _buf2.as_str())
+            }
         };
         write!(f, "{} {}", pair.0, pair.1)
     }
