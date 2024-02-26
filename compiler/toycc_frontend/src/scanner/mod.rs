@@ -490,7 +490,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
 #[cfg(test)]
 mod tests {
     use super::Scanner;
-    use crate::scanner::token::{MulOP, RelOP};
+    use crate::scanner::token::{MulOP, RelOP, Type};
     use crate::{
         scanner::token::{AddOP, Keyword, Token, TokenKind},
         BufferedStream,
@@ -516,7 +516,6 @@ mod tests {
                     sci: false
                 },
                 1,
-                (1, 0)
             ))
         );
 
@@ -568,8 +567,8 @@ mod tests {
             tokens,
             [
                 TokenKind::Identifier("hello".to_string()),
-                TokenKind::Keyword(Keyword::Char),
-                TokenKind::Keyword(Keyword::Int),
+                TokenKind::Type(Type::Char),
+                TokenKind::Type(Type::Int),
                 TokenKind::Keyword(Keyword::While),
                 TokenKind::RelOP(RelOP::LessEqual),
                 TokenKind::RelOP(RelOP::NotEquals),
