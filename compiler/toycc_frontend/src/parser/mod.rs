@@ -1,3 +1,4 @@
+mod ast;
 pub mod error;
 
 use crate::parser::error::ParserError;

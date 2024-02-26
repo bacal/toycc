@@ -1,5 +1,5 @@
 use crate::scanner::error::{ScannerError, ScannerErrorKind};
-use crate::scanner::token::{Delimiter, Keyword, RelOP, Token, TokenKind};
+use crate::scanner::token::{Delimiter, Keyword, RelOP, Token, TokenKind, Type};
 use crate::BufferedStream;
 use std::io::{Read, Seek};
 
@@ -142,7 +142,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                             return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1))
                         }
                         '}' => {
-                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LCurly), 1))
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::RCurly), 1))
                         }
                         ':' => {
                             return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))
@@ -421,9 +421,9 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
     }
 
     fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
-        let token = Token::new(kind, len, (self.lines_read, self.position));
+        let token = Token::new(kind, len);
         if self.debug.is_some() || self.verbose {
-            println!("[SCANNER] {token}")
+            println!("[SCANNER] token {token}")
         }
         self.previous_location = (self.lines_read, self.position + 1);
         self.state = State::Initial;
@@ -465,15 +465,15 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
     }
     fn keyword_or_id_token(&mut self) -> Token {
         let kind = match self.buffer.as_str() {
+            "char" => TokenKind::Type(Type::Char),
+            "int" => TokenKind::Type(Type::Int),
             "break" => TokenKind::Keyword(Keyword::Break),
-            "char" => TokenKind::Keyword(Keyword::Char),
             "case" => TokenKind::Keyword(Keyword::Case),
             "continue" => TokenKind::Keyword(Keyword::Continue),
             "default" => TokenKind::Keyword(Keyword::Default),
             "do" => TokenKind::Keyword(Keyword::Do),
             "else" => TokenKind::Keyword(Keyword::Else),
             "for" => TokenKind::Keyword(Keyword::For),
-            "int" => TokenKind::Keyword(Keyword::Int),
             "if" => TokenKind::Keyword(Keyword::If),
             "newline" => TokenKind::Keyword(Keyword::Newline),
             "return" => TokenKind::Keyword(Keyword::Return),
@@ -490,7 +490,7 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
 #[cfg(test)]
 mod tests {
     use super::Scanner;
-    use crate::scanner::token::{MulOP, RelOP};
+    use crate::scanner::token::{MulOP, RelOP, Type};
     use crate::{
         scanner::token::{AddOP, Keyword, Token, TokenKind},
         BufferedStream,
@@ -516,7 +516,6 @@ mod tests {
                     sci: false
                 },
                 1,
-                (1, 0)
             ))
         );
 
@@ -568,8 +567,8 @@ mod tests {
             tokens,
             [
                 TokenKind::Identifier("hello".to_string()),
-                TokenKind::Keyword(Keyword::Char),
-                TokenKind::Keyword(Keyword::Int),
+                TokenKind::Type(Type::Char),
+                TokenKind::Type(Type::Int),
                 TokenKind::Keyword(Keyword::While),
                 TokenKind::RelOP(RelOP::LessEqual),
                 TokenKind::RelOP(RelOP::NotEquals),
