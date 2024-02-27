@@ -7,7 +7,8 @@ pub enum ParserError {
     Generic,
     ExpectedType,
     ExpectedIdentifier,
-    ExpectedFuncDef,
+    ExpectedDelimiter(char),
+    ExpectedSemicolon,
 }
 
 impl From<ScannerError> for ParserError {
