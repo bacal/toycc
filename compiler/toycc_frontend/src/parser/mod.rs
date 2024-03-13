@@ -1,4 +1,5 @@
 pub mod error;
+mod ast;
 
 use crate::parser::error::ParserError;
 use crate::scanner::error::ScannerError;
@@ -6,6 +7,7 @@ use crate::scanner::token::{Delimiter, Token, TokenKind};
 use crate::scanner::Scanner;
 use crate::BufferedStream;
 use std::io::{Read, Seek};
+use crate::parser::ast::{Definition, FuncDef, Statement, VarDef};
 
 pub struct Parser<'a, S: Read + Seek> {
     scanner: Scanner<'a, S>,
@@ -55,41 +57,46 @@ impl<'a, S: Read + Seek> Parser<'a, S> {
     }
 
     pub fn parse(&mut self) -> Result<(), ParserError> {
-        self.definition()
+        let d = self.definition()?;
+        println!("{:#?}",d);
+        Ok(())
     }
 
-    fn definition(&mut self) -> Result<(), ParserError> {
+    fn definition(&mut self) -> Result<Definition, ParserError> {
         self.debug_print("entering definition");
         let tc_type = match &self.next_token()?.kind {
             TokenKind::Type(t) => t,
             _ => return Err(ParserError::ExpectedType),
-        };
+        }.clone();
 
         let identifier = match &self.next_token()?.kind {
             TokenKind::Identifier(id) => id,
             _ => return Err(ParserError::ExpectedIdentifier),
-        };
+        }.clone();
 
-        let func_def = match self.next_token()?.kind {
-            TokenKind::Delimiter(Delimiter::Semicolon) => {}
+        let def = match &self.next_token()?.kind {
+            TokenKind::Delimiter(Delimiter::Semicolon) => {
+                Definition::VarDef(VarDef::new(vec![identifier],tc_type.to_string()))
+            }
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.rewind = true;
-                self.func_def()?
+                let (vardefs,statement) = self.func_def()?;
+                Definition::FuncDef(FuncDef::new(identifier,tc_type.to_string(),vardefs,statement))
             }
             _ => return Err(ParserError::ExpectedDelimiter('(')),
         };
         self.debug_print("exiting definition");
-        Ok(())
+        Ok(def)
     }
 
-    fn func_def(&mut self) -> Result<(), ParserError> {
+    fn func_def(&mut self) -> Result<(Vec<VarDef>, Statement), ParserError> {
         self.debug_print("entering func_def");
-        let header = self.func_header();
-        let body = self.func_body();
+        let header = self.func_header()?;
+        let body = self.func_body()?;
         self.debug_print("exiting func_def");
-        Ok(())
+        Ok((header,Statement::BlockState(vec![],vec![])))
     }
-    fn func_header(&mut self) -> Result<(), ParserError> {
+    fn func_header(&mut self) -> Result<Vec<VarDef>, ParserError> {
         self.debug_print("entering func_header");
 
         self.accept(
@@ -98,49 +105,55 @@ impl<'a, S: Read + Seek> Parser<'a, S> {
         )?;
         let params = self.formal_param_list()?;
         self.accept(
-            TokenKind::Delimiter(Delimiter::LParen),
-            ParserError::ExpectedDelimiter('('),
+            TokenKind::Delimiter(Delimiter::RParen),
+            ParserError::ExpectedDelimiter(')'),
         )?;
-
         self.debug_print("exiting func_header");
-        Ok(())
+        Ok(params)
     }
-    fn formal_param_list(&mut self) -> Result<(), ParserError> {
+    fn formal_param_list(&mut self) -> Result<Vec<VarDef>, ParserError> {
+        let mut param_list = vec![];
         self.debug_print("entering formal_param_list");
         let tc_type = match &self.next_token()?.kind {
             TokenKind::Type(t) => t,
             _ => return Err(ParserError::ExpectedType),
-        };
+        }.clone();
 
         let identifier = match &self.next_token()?.kind {
             TokenKind::Identifier(id) => id,
             _ => return Err(ParserError::ExpectedIdentifier),
-        };
+        }.clone();
 
-        let rep_formal_param = self.rep_formal_param()?;
-
+        param_list.push(VarDef::new(vec![identifier],tc_type.to_string()));
+        param_list.append(&mut self.rep_formal_param()?.unwrap_or_default());
         self.debug_print("exiting formal_param_list");
-        Ok(())
+        Ok(param_list)
     }
 
-    fn rep_formal_param(&mut self) -> Result<(), ParserError> {
+    fn rep_formal_param(&mut self) -> Result<Option<Vec<VarDef>>, ParserError> {
+        let mut params = vec![];
         match &self.next_token()?.kind {
             TokenKind::Delimiter(Delimiter::Comma) => {}
             _ => {
                 self.rewind = true;
-                return Ok(());
+                return Ok(None);
             }
         }
         let tc_type = match &self.next_token()?.kind {
             TokenKind::Type(t) => t.clone(),
             _ => return Err(ParserError::ExpectedType),
-        };
+        }.clone();
 
         let identifier = match &self.next_token()?.kind {
             TokenKind::Identifier(id) => id,
             _ => return Err(ParserError::ExpectedIdentifier),
+        }.clone();
+        params.push(VarDef::new(vec![identifier],tc_type.to_string()));
+        match self.rep_formal_param()?{
+            Some(mut p) => params.append(&mut p),
+            None => {}
         };
-        self.rep_formal_param()
+        Ok(Some(params))
     }
 
     fn func_body(&mut self) -> Result<(), ParserError> {
@@ -158,7 +171,6 @@ impl<'a, S: Read + Seek> Parser<'a, S> {
             TokenKind::Delimiter(Delimiter::LCurly),
             ParserError::ExpectedDelimiter('{'),
         )?;
-        self.rewind = true;
         match &self.next_token()?.kind {
             TokenKind::Type(t) => {
                 let tc_type = t;
