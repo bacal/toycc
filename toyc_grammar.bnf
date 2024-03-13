@@ -1,6 +1,6 @@
 // Unescaped E is Epsilon
 
-<toy_c_program> ::= <def> "EOF"
+<toy_c_program> ::= <def> EOF
 
 <def> ::= <definition> <def> | E
 <definition> ::= <type> identifier <func_def>

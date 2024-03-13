@@ -21,6 +21,7 @@ impl Diagnostic for ParserError {
     fn info(&self) -> String {
         match self {
             ParserError::ScannerError(s) => s.info(),
+            ParserError::ExpectedDelimiter(d) => format!("expected delimiter: '{d}'"),
             _ => "".to_string(),
         }
     }

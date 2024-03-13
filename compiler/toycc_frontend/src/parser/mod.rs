@@ -131,7 +131,6 @@ impl<'a, S: Read + Seek> Parser<'a, S> {
     }
 
     fn rep_formal_param(&mut self) -> Result<Option<Vec<VarDef>>, ParserError> {
-        let mut params = vec![];
         match &self.next_token()?.kind {
             TokenKind::Delimiter(Delimiter::Comma) => {}
             _ => {
@@ -139,8 +138,10 @@ impl<'a, S: Read + Seek> Parser<'a, S> {
                 return Ok(None);
             }
         }
+        let mut params = vec![];
+
         let tc_type = match &self.next_token()?.kind {
-            TokenKind::Type(t) => t.clone(),
+            TokenKind::Type(t) => t,
             _ => return Err(ParserError::ExpectedType),
         }.clone();
 
