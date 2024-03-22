@@ -2,6 +2,7 @@ mod error;
 
 use std::fmt::Display;
 use std::fs::File;
+use std::io::{stdout, Write};
 use std::process::exit;
 
 use crate::error::Error;
@@ -36,12 +37,13 @@ fn main() {
         args.verbose,
     );
     match parser.parse() {
-        Ok(()) => {}
+        Ok(_) => {}
         Err(e) => handle_error(e),
     }
 }
 
 fn handle_error<T: Report + Diagnostic + Display>(error: T) -> ! {
+    let _ = stdout().flush();
     println!("{}", error);
     exit(1)
 }
