@@ -1,16 +1,16 @@
 #[derive(Debug)]
-pub enum Program{
-    Definition(Vec<Definition>)
+pub enum Program {
+    Definition(Vec<Definition>),
 }
 
 #[derive(Debug)]
-pub enum Definition{
+pub enum Definition {
     FuncDef(FuncDef),
     VarDef(VarDef),
 }
 
 #[derive(Debug)]
-pub struct FuncDef{
+pub struct FuncDef {
     identifier: String,
     toyc_type: String,
     var_def: Vec<VarDef>,
@@ -18,33 +18,38 @@ pub struct FuncDef{
 }
 
 #[derive(Debug)]
-pub struct VarDef{
+pub struct VarDef {
     identifiers: Vec<String>,
     toyc_type: String,
 }
 
-impl FuncDef{
-    pub fn new(identifier: String, toyc_type: String, var_def: Vec<VarDef>, statement: Statement) -> Self{
-        Self{
+impl FuncDef {
+    pub fn new(
+        identifier: String,
+        toyc_type: String,
+        var_def: Vec<VarDef>,
+        statement: Statement,
+    ) -> Self {
+        Self {
             identifier,
             toyc_type,
             var_def,
-            statement
+            statement,
         }
     }
 }
 
-impl VarDef{
-    pub fn new(identifiers: Vec<String>, toyc_type: String) -> Self{
-        Self{
+impl VarDef {
+    pub fn new(identifiers: Vec<String>, toyc_type: String) -> Self {
+        Self {
             identifiers,
-            toyc_type
+            toyc_type,
         }
     }
 }
 
 #[derive(Debug)]
-pub enum Statement{
+pub enum Statement {
     Expression(Expression),
     Break,
     BlockState(Vec<VarDef>, Vec<Statement>),
@@ -58,7 +63,7 @@ pub enum Statement{
 }
 
 #[derive(Debug)]
-pub enum Expression{
+pub enum Expression {
     Number(f64),
     Identifier(String),
     CharLiteral(char),
@@ -69,7 +74,7 @@ pub enum Expression{
 }
 
 #[derive(Debug)]
-pub enum Operator{
+pub enum Operator {
     Plus,
     Minus,
     Multiply,
