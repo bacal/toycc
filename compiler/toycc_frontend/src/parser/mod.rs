@@ -4,7 +4,7 @@ pub mod error;
 use crate::parser::ast::{Definition, FuncDef, Program, Statement, VarDef};
 use crate::parser::error::{ParserError, ParserErrorKind};
 use crate::scanner::error::ScannerError;
-use crate::scanner::token::{Delimiter, Token, TokenKind};
+use crate::scanner::token::{Delimiter, Token, TokenKind, Keyword, Type};
 use crate::scanner::Scanner;
 use crate::BufferedStream;
 use std::io::{Read, Seek};
@@ -197,6 +197,8 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
     }
 
+
+    /// Todo: Finish compound statement implementation
     fn compound_statement(&mut self) -> Result<(), ParserError> {
         self.debug_print("entering compound_statement");
         self.accept(
@@ -205,7 +207,11 @@ impl<'a, S: Read + Seek> Parser<S> {
         )?;
         match &self.next_token()?.kind {
             TokenKind::Type(t) => {
-                let tc_type = t;
+                let tc_type = match &self.next_token()?.kind {
+                    TokenKind::Type(Type::Int) | TokenKind::Type(Type::Char) => {}
+                    _ => {ParserErrorKind::Generic;}
+                };
+
             }
             _ => {
                 let statements = self.statements()?;
@@ -225,10 +231,30 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
     }
 
+    /// Todo: finish if_statement production implementation.
+    fn if_statement(&mut self) -> Result<(), ParserError> {
+        self.debug_print("entering if_statement");
+
+        Ok(())
+    }
+
     fn statement(&mut self) -> Result<(), ParserError> {
         self.debug_print("entering statement");
 
         self.debug_print("exiting statement");
+
+        Ok(())
+    }
+
+
+    fn null_statement(&mut self) -> Result<(), ParserError> {
+        self.debug_print("entering null statement");
+        self.accept(
+            TokenKind::Delimiter(Delimiter::Semicolon),
+            ParserErrorKind::ExpectedDelimiter(';')
+        )?;
+        
+        self.debug_print("exiting null statement");
 
         Ok(())
     }

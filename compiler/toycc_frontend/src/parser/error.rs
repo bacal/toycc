@@ -9,6 +9,7 @@ pub enum ParserErrorKind {
     ExpectedIdentifier,
     ExpectedDelimiter(char),
     ExpectedSemicolon,
+    ExpectedKeyword(),
 }
 impl Default for ParserErrorKind {
     fn default() -> Self {
