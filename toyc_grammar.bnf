@@ -32,9 +32,9 @@
 
 <break_statement> ::= "break" ";"
 
-<compound_statement> ::= "{" <tidcs> <stmtcs> "}"
+<compound_statement> ::= "{" <declarations> <stmtcs> "}"
 
-<tidcs> ::= <type> identifier ";" <tidcs> | E
+<declarations> ::= <type> identifier ";" <declarations> | E
 
 <stmtcs> ::= <statement> <stmtcs> | E
 
