@@ -258,6 +258,89 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         Ok(())
     }
+
+    pub fn return_statement(&mut self) -> Result<(),ParserError>{
+        todo!()
+    }
+    pub fn while_statement(&mut self) -> Result<(),ParserError>{
+        todo!()
+    }
+    pub fn read_statement(&mut self) -> Result<(),ParserError>{
+        todo!()
+    }
+    pub fn write_statement(&mut self) -> Result<(),ParserError>{
+        todo!()
+    }
+    pub fn new_line_statement(&mut self) -> Result<(),ParserError>{
+        todo!()
+    }
+    pub fn expression_statement(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn break_statement(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn tidcs(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn stmtcs(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn else_stmt(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn ret_expr(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn read_rep(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn expression(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn rep_expr(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn relop_expression(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn rep_relop_expr(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn simple_expression(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn rep_simple_expr(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn term(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn rep_term(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn primary(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn fcall_option(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn not(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn function_call(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn aparam_option(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn actual_parameters(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+    pub fn rep_aparam_expr(&mut self) -> Result<(),ParserError>{
+		todo!()
+	}
+
     fn create_error(&mut self, kind: ParserErrorKind) -> ParserError {
         let line = self.scanner.error_get_line(self.scanner.previous_location);
         let location = self.scanner.previous_location;
