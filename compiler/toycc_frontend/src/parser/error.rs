@@ -36,6 +36,16 @@ impl From<ScannerError> for ParserError {
         }
     }
 }
+impl From<ScannerError> for Box<ParserError>{
+    fn from(value: ScannerError) -> Self {
+        Box::new(ParserError::from(value))
+    }
+}
+impl From<Box<ScannerError>> for Box<ParserError>{
+    fn from(value: Box<ScannerError>) -> Self {
+        Box::new(ParserError::from(*value))
+    }
+}
 
 impl ParserError {
     pub fn new(

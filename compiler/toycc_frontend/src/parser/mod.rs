@@ -40,7 +40,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         }
     }
 
-    fn next_token(&mut self) -> Result<&Token, ScannerError> {
+    fn next_token(&mut self) -> Result<&Token, Box<ScannerError>> {
         match self.rewind {
             true => {
                 self.rewind = false;
@@ -57,7 +57,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         &mut self,
         token_kind: TokenKind,
         error_kind: ParserErrorKind,
-    ) -> Result<(), ParserError> {
+    ) -> Result<(), Box<ParserError>> {
         if self.next_token()?.kind != token_kind {
             Err(self.create_error(error_kind))
         } else {
@@ -65,7 +65,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Program, ParserError> {
+    pub fn parse(&mut self) -> Result<Program, Box<ParserError>> {
         let mut definitions = vec![];
         loop {
             match &self.next_token()?.kind {
@@ -80,7 +80,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(Program::Definition(definitions))
     }
 
-    fn definition(&mut self) -> Result<Definition, ParserError> {
+    fn definition(&mut self) -> Result<Definition, Box<ParserError>> {
         self.debug_print("entering definition");
         let tc_type = match &self.next_token()?.kind {
             TokenKind::Type(t) => t,
@@ -116,14 +116,14 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(def)
     }
 
-    fn func_def(&mut self) -> Result<(Vec<VarDef>, Statement), ParserError> {
+    fn func_def(&mut self) -> Result<(Vec<VarDef>, Statement), Box<ParserError>> {
         self.debug_print("entering func_def");
         let header = self.func_header()?;
         let body = self.func_body()?;
         self.debug_print("exiting func_def");
         Ok((header, Statement::BlockState(vec![], vec![])))
     }
-    fn func_header(&mut self) -> Result<Vec<VarDef>, ParserError> {
+    fn func_header(&mut self) -> Result<Vec<VarDef>, Box<ParserError>> {
         self.debug_print("entering func_header");
 
         self.accept(
@@ -138,7 +138,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("exiting func_header");
         Ok(params)
     }
-    fn formal_param_list(&mut self) -> Result<Vec<VarDef>, ParserError> {
+    fn formal_param_list(&mut self) -> Result<Vec<VarDef>, Box<ParserError>> {
         let mut param_list = vec![];
         self.debug_print("entering formal_param_list");
         let tc_type = match &self.next_token()?.kind {
@@ -163,7 +163,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(param_list)
     }
 
-    fn rep_formal_param(&mut self) -> Result<Option<Vec<VarDef>>, ParserError> {
+    fn rep_formal_param(&mut self) -> Result<Option<Vec<VarDef>>, Box<ParserError>> {
         match &self.next_token()?.kind {
             TokenKind::Delimiter(Delimiter::Comma) => {}
             _ => {
@@ -191,7 +191,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(Some(params))
     }
 
-    fn func_body(&mut self) -> Result<(), ParserError> {
+    fn func_body(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering func_body");
 
         let compound_statement = self.compound_statement()?;
@@ -200,7 +200,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
     }
 
-    fn compound_statement(&mut self) -> Result<(), ParserError> {
+    fn compound_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering compound_statement");
         self.accept(
             TokenKind::Delimiter(Delimiter::LCurly),
@@ -217,7 +217,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
     }
 
-    fn declarations(&mut self) -> Result<Vec<(Type, String)>, ParserError> {
+    fn declarations(&mut self) -> Result<Vec<(Type, String)>, Box<ParserError>> {
         let mut declarations = vec![];
 
         let toyc_type = match &self.next_token()?.kind {
@@ -233,27 +233,27 @@ impl<'a, S: Read + Seek> Parser<S> {
             _ => return Err(self.create_error(ExpectedIdentifier)),
         };
 
-        declarations.append(&mut self.type_id_rep()?);
+        declarations.append(&mut self.declarations()?);
 
         Ok(declarations)
     }
 
-    fn statements(&mut self) -> Result<(), ParserError> {
-        let mut statements = vec![];
-
+    fn statements(&mut self) -> Result<(), Box<ParserError>> {
         Ok(())
     }
 
     /// Todo: finish if_statement production implementation.
-    fn if_statement(&mut self) -> Result<(), ParserError> {
+    fn if_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering if_statement");
 
         Ok(())
     }
 
-    fn try_statement(&mut self) -> Result<(), ParserError> {}
+    fn try_statement(&mut self) -> Result<(), Box<ParserError>> {
+        todo!()
+    }
 
-    fn statement(&mut self) -> Result<(), ParserError> {
+    fn statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering statement");
 
         self.debug_print("exiting statement");
@@ -261,7 +261,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
     }
 
-    fn null_statement(&mut self) -> Result<(), ParserError> {
+    fn null_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering null statement");
 
         self.accept(
@@ -274,7 +274,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
     }
 
-    fn return_statement(&mut self) -> Result<(), ParserError> {
+    fn return_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering return_statement");
         match &self.next_token()?.kind {
             TokenKind::Keyword(Keyword::Return) => {}
@@ -287,7 +287,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("exiting return_statement");
         Ok(())
     }
-    fn while_statement(&mut self) -> Result<(), ParserError> {
+    fn while_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering while_statement");
 
         self.accept(
@@ -312,7 +312,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("exiting while_statement");
         Ok(())
     }
-    fn read_statement(&mut self) -> Result<(), ParserError> {
+    fn read_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering read_statement");
         self.accept(
             TokenKind::Keyword(Keyword::Read),
@@ -344,36 +344,36 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("exiting read_statement");
         Ok(())
     }
-    fn write_statement(&mut self) -> Result<(), ParserError> {
+    fn write_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering write_statement");
         todo!();
         self.debug_print("exiting write_statement");
     }
-    fn new_line_statement(&mut self) -> Result<(), ParserError> {
+    fn new_line_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering new_line_statement");
         todo!();
         self.debug_print("exiting new_line_statement");
     }
-    fn expression_statement(&mut self) -> Result<(), ParserError> {
+    fn expression_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering expression_statement");
         todo!();
         self.debug_print("exiting expression_statement");
     }
-    fn break_statement(&mut self) -> Result<(), ParserError> {
+    fn break_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering break_statement");
         todo!();
         self.debug_print("exiting break_statement");
     }
 
-    fn else_stmt(&mut self) -> Result<(), ParserError> {
+    fn else_stmt(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering else_stmt");
         todo!();
         self.debug_print("exiting else_stmt");
     }
-    fn ret_expr(&mut self) -> Result<(), ParserError> {
+    fn ret_expr(&mut self) -> Result<(), Box<ParserError>> {
         todo!();
     }
-    fn read_rep(&mut self) -> Result<Vec<String>, ParserError> {
+    fn read_rep(&mut self) -> Result<Vec<String>, Box<ParserError>> {
         let mut repetitions = vec![];
         if self.next_token()?.kind == TokenKind::Delimiter(Delimiter::Comma) {
             let identifier = match &self.next_token()?.kind {
@@ -387,56 +387,56 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(repetitions)
     }
 
-    fn expression(&mut self) -> Result<(), ParserError> {
+    fn expression(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn rep_expr(&mut self) -> Result<(), ParserError> {
+    fn rep_expr(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn relop_expression(&mut self) -> Result<(), ParserError> {
+    fn relop_expression(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn rep_relop_expr(&mut self) -> Result<(), ParserError> {
+    fn rep_relop_expr(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn simple_expression(&mut self) -> Result<(), ParserError> {
+    fn simple_expression(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn rep_simple_expr(&mut self) -> Result<(), ParserError> {
+    fn rep_simple_expr(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn term(&mut self) -> Result<(), ParserError> {
+    fn term(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn rep_term(&mut self) -> Result<(), ParserError> {
+    fn rep_term(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn primary(&mut self) -> Result<(), ParserError> {
+    fn primary(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn fcall_option(&mut self) -> Result<(), ParserError> {
+    fn fcall_option(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn not(&mut self) -> Result<(), ParserError> {
+    fn not(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn function_call(&mut self) -> Result<(), ParserError> {
+    fn function_call(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn aparam_option(&mut self) -> Result<(), ParserError> {
+    fn aparam_option(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn actual_parameters(&mut self) -> Result<(), ParserError> {
+    fn actual_parameters(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
-    fn rep_aparam_expr(&mut self) -> Result<(), ParserError> {
+    fn rep_aparam_expr(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
     }
 
-    fn create_error(&mut self, kind: ParserErrorKind) -> ParserError {
+    fn create_error(&mut self, kind: ParserErrorKind) -> Box<ParserError> {
         let line = self.scanner.error_get_line(self.scanner.previous_location);
         let location = self.scanner.previous_location;
         let stream_name = self.scanner.stream.name.clone().unwrap_or_default();
-        ParserError::new(kind, line, location, 1, stream_name, None)
+        Box::new(ParserError::new(kind, line, location, 1, stream_name, None))
     }
 }

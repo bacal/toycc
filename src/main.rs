@@ -38,7 +38,7 @@ fn main() {
     );
     match parser.parse() {
         Ok(_) => {}
-        Err(e) => handle_error(e),
+        Err(e) => handle_error(*e),
     }
 }
 
