@@ -257,43 +257,43 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
     }
 
-    pub fn return_statement(&mut self) -> Result<(), ParserError> {
+    fn return_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
-    pub fn while_statement(&mut self) -> Result<(), ParserError> {
+    fn while_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
-    pub fn read_statement(&mut self) -> Result<(), ParserError> {
+    fn read_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
-    pub fn write_statement(&mut self) -> Result<(), ParserError> {
+    fn write_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
-    pub fn new_line_statement(&mut self) -> Result<(), ParserError> {
+    fn new_line_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
-    pub fn expression_statement(&mut self) -> Result<(),ParserError>{
+    fn expression_statement(&mut self) -> Result<(),ParserError>{
 		todo!()
 	}
-    pub fn break_statement(&mut self) -> Result<(),ParserError>{
+    fn break_statement(&mut self) -> Result<(),ParserError>{
 		todo!()
 	}
-    pub fn tidcs(&mut self) -> Result<(),ParserError>{
+    fn tidcs(&mut self) -> Result<(),ParserError>{
 		todo!()
 	}
-    pub fn stmtcs(&mut self) -> Result<(),ParserError>{
+    fn stmtcs(&mut self) -> Result<(),ParserError>{
 		todo!()
 	}
-    pub fn else_stmt(&mut self) -> Result<(),ParserError>{
+    fn else_stmt(&mut self) -> Result<(),ParserError>{
 		todo!()
 	}
-    pub fn ret_expr(&mut self) -> Result<(),ParserError>{
+    fn ret_expr(&mut self) -> Result<(),ParserError>{
 		todo!()
 	}
-    pub fn read_rep(&mut self) -> Result<(),ParserError>{
+    fn read_rep(&mut self) -> Result<(),ParserError>{
 		todo!()
 	}
-    pub fn expression(&mut self) -> Result<(),ParserError>{
+    fn expression(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering expresssion");
         let relop_expression = self.relop_expression()?;
         let rep_expr = self.rep_expr()?;
@@ -301,7 +301,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
 
     }
-    pub fn rep_expr(&mut self) -> Result<(),ParserError>{
+    fn rep_expr(&mut self) -> Result<(),ParserError>{
         self.debug_print("entering rep expr");
         match &self.next_token()?.kind {
             TokenKind::AssignOP => {}
@@ -316,14 +316,14 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         Ok(())
 	}
-    pub fn relop_expression(&mut self) -> Result<(),ParserError>{
+    fn relop_expression(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering relop expression");
         let simple_expression = self.simple_expression()?;
         let rep_relop_expression = self.rep_relop_expr()?;
         self.debug_print("exiting relop expression");
         Ok(())
 	}
-    pub fn rep_relop_expr(&mut self) -> Result<(),ParserError>{
+    fn rep_relop_expr(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering rep_relop_expr");
         match &self.next_token()?.kind {
             TokenKind::RelOP(RelOP::GreaterThan) |
@@ -346,14 +346,14 @@ impl<'a, S: Read + Seek> Parser<S> {
 
 
 	}
-    pub fn simple_expression(&mut self) -> Result<(),ParserError>{
+    fn simple_expression(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering simple_expression");
         let term = self.term()?;
         let rep_simple_expr= self.rep_simple_expr()?;
         self.debug_print("exiting simple_expression");
         Ok(())
 	}
-    pub fn rep_simple_expr(&mut self) -> Result<(),ParserError>{
+    fn rep_simple_expr(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering rep_simple_expr");
         match &self.next_token()?.kind {
             TokenKind::AddOP(AddOP::Plus) |
@@ -372,14 +372,14 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         Ok(())
 	}
-    pub fn term(&mut self) -> Result<(),ParserError>{
+    fn term(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering term");
         let primary = self.primary()?;
         let rep_term = self.rep_term()?;
         self.debug_print("exiting term");
         Ok(())
 	}
-    pub fn rep_term(&mut self) -> Result<(),ParserError>{
+    fn rep_term(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering rep_term");
         match &self.next_token()?.kind {
             TokenKind::MulOP(MulOP::Multiply) |
@@ -399,7 +399,7 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         Ok(())
 	}
-    pub fn primary(&mut self) -> Result<(),ParserError>{
+    fn primary(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering primary");
 
         // match &self.next_token()?.kind {
@@ -418,7 +418,7 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         todo!()
 	}
-    pub fn fcall_option(&mut self) -> Result<(),ParserError>{
+    fn fcall_option(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering fcall_option");
         match &self.next_token()?.kind {
             TokenKind::Delimiter(Delimiter::RParen) => {
@@ -433,10 +433,10 @@ impl<'a, S: Read + Seek> Parser<S> {
         }
 
 	}
-    pub fn not(&mut self) -> Result<(),ParserError>{
+    fn not(&mut self) -> Result<(),ParserError>{
 		todo!()
 	}
-    pub fn function_call(&mut self) -> Result<(),ParserError>{
+    fn function_call(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering function_call");
         self.accept(
             TokenKind::Delimiter(Delimiter::LParen),
@@ -450,7 +450,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("exiting function_call");
         Ok(())
 	}
-    pub fn aparam_option(&mut self) -> Result<(),ParserError>{
+    fn aparam_option(&mut self) -> Result<(),ParserError>{
 		// match &self.next_token()?.kind {
         //     TokenKind::Identifier(id) |
         //     TokenKind::Number { num, sci = false} |
@@ -470,7 +470,7 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         todo!();
 	}
-    pub fn actual_parameters(&mut self) -> Result<(),ParserError>{
+    fn actual_parameters(&mut self) -> Result<(),ParserError>{
 		self.debug_print("entering actual_parameters");
         let expression = self.expression()?;
         let rep_aparam_expr = self.rep_aparam_expr()?;
@@ -478,7 +478,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
 	}
 
-    pub fn rep_aparam_expr(&mut self) -> Result<(),ParserError>{
+    fn rep_aparam_expr(&mut self) -> Result<(),ParserError>{
 		match &self.next_token()?.kind{
             TokenKind::Delimiter(Delimiter::Comma) => {}
             _ => {
