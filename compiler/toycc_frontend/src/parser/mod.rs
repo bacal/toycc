@@ -2,7 +2,6 @@ mod ast;
 pub mod error;
 
 use crate::parser::ast::{Definition, FuncDef, Program, Statement, VarDef};
-use crate::parser::error::ParserErrorKind::ExpectedIdentifier;
 use crate::parser::error::{ParserError, ParserErrorKind};
 use crate::scanner::error::ScannerError;
 use crate::scanner::token::{Delimiter, Keyword, Token, TokenKind, Type};
@@ -230,7 +229,7 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         let identifier = match &self.next_token()?.kind {
             TokenKind::Identifier(id) => declarations.push((toyc_type, id.clone())),
-            _ => return Err(self.create_error(ExpectedIdentifier)),
+            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
         };
 
         declarations.append(&mut self.declarations()?);
@@ -239,22 +238,39 @@ impl<'a, S: Read + Seek> Parser<S> {
     }
 
     fn statements(&mut self) -> Result<(), Box<ParserError>> {
-        Ok(())
+        let statement = self.statement()?;
+
+        self.statements()
     }
 
     /// Todo: finish if_statement production implementation.
     fn if_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering if_statement");
+        self.accept(TokenKind::Delimiter(Delimiter::LParen), ParserErrorKind::ExpectedDelimiter(Delimiter::LParen))?;
+        let expression = self.expression();
+        self.accept(TokenKind::Delimiter(Delimiter::RParen), ParserErrorKind::ExpectedDelimiter(Delimiter::RParen))?;
+        let statement = self.statement();
+        let toyc_else = self.else_stmt();
 
         Ok(())
     }
 
-    fn try_statement(&mut self) -> Result<(), Box<ParserError>> {
-        todo!()
-    }
-
     fn statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering statement");
+        self.rewind = true;
+
+        let statement = match self.next_token()?.kind{
+            TokenKind::Keyword(Keyword::Break) => self.break_statement(),
+            TokenKind::Delimiter(Delimiter::RCurly) => self.compound_statement(),
+            TokenKind::Keyword(Keyword::If) => self.if_statement(),
+            TokenKind::Delimiter(Delimiter::Semicolon) => self.null_statement(),
+            TokenKind::Keyword(Keyword::Return) => self.return_statement(),
+            TokenKind::Keyword(Keyword::While) => self.while_statement(),
+            TokenKind::Keyword(Keyword::Read) => self.read_statement(),
+            TokenKind::Keyword(Keyword::Write) => self.write_statement(),
+            TokenKind::Keyword(Keyword::Newline) => self.new_line_statement(),
+            _ => self.expression_statement(),
+        };
 
         self.debug_print("exiting statement");
 
@@ -365,7 +381,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("exiting break_statement");
     }
 
-    fn else_stmt(&mut self) -> Result<(), Box<ParserError>> {
+    fn else_stmt(&mut self) -> Result<Option<()>, Box<ParserError>> {
         self.debug_print("entering else_stmt");
         todo!();
         self.debug_print("exiting else_stmt");
@@ -388,7 +404,7 @@ impl<'a, S: Read + Seek> Parser<S> {
     }
 
     fn expression(&mut self) -> Result<(), Box<ParserError>> {
-        todo!()
+        Ok(())
     }
     fn rep_expr(&mut self) -> Result<(), Box<ParserError>> {
         todo!()
