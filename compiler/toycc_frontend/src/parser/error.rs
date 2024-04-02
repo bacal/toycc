@@ -1,4 +1,5 @@
 use crate::scanner::error::ScannerError;
+use crate::scanner::token::{Delimiter, Keyword};
 use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
 
 #[derive(Debug)]
@@ -7,10 +8,9 @@ pub enum ParserErrorKind {
     Generic,
     ExpectedType,
     ExpectedIdentifier,
-    ExpectedDelimiter(char),
+    ExpectedDelimiter(Delimiter),
     ExpectedSemicolon,
-    ExpectedKeyword(),
-    ExpectedEquals
+    ExpectedKeyword(Keyword),
 }
 impl Default for ParserErrorKind {
     fn default() -> Self {
@@ -34,6 +34,16 @@ impl From<ScannerError> for ParserError {
             kind: ParserErrorKind::ScannerError(scanner_error),
             ..Default::default()
         }
+    }
+}
+impl From<ScannerError> for Box<ParserError>{
+    fn from(value: ScannerError) -> Self {
+        Box::new(ParserError::from(value))
+    }
+}
+impl From<Box<ScannerError>> for Box<ParserError>{
+    fn from(value: Box<ScannerError>) -> Self {
+        Box::new(ParserError::from(*value))
     }
 }
 
@@ -61,7 +71,6 @@ impl Diagnostic for ParserError {
     fn info(&self) -> String {
         match &self.kind {
             ParserErrorKind::ScannerError(s) => s.info(),
-            ParserErrorKind::ExpectedEquals => format!("expected '='"),
             ParserErrorKind::ExpectedDelimiter(d) => format!("expected delimiter: '{d}'"),
             _ => "".to_string(),
         }

@@ -594,7 +594,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("exiting actual_parameters");
         Ok(())
     }
-    fn rep_aparam_expr(&mut self) -> Result<(), ParserError> {
+    fn rep_aparam_expr(&mut self)  -> Result<(), Box<ParserError>> {
         match &self.next_token()?.kind{
             TokenKind::Delimiter(Delimiter::Comma) => {}
             _ => {
