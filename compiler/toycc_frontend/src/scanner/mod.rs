@@ -459,7 +459,7 @@ impl<S: Read + Seek> Scanner<S> {
         Some(
             self.stream
                 .nth(location.0 - 1)
-                .unwrap()
+                .unwrap_or_default()
                 .trim_end()
                 .to_string(),
         )

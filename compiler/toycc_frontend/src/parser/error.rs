@@ -9,8 +9,8 @@ pub enum ParserErrorKind {
     ExpectedType,
     ExpectedIdentifier,
     ExpectedDelimiter(Delimiter),
-    ExpectedSemicolon,
     ExpectedKeyword(Keyword),
+    ExpectedNumber,
 }
 impl Default for ParserErrorKind {
     fn default() -> Self {
@@ -36,12 +36,12 @@ impl From<ScannerError> for ParserError {
         }
     }
 }
-impl From<ScannerError> for Box<ParserError>{
+impl From<ScannerError> for Box<ParserError> {
     fn from(value: ScannerError) -> Self {
         Box::new(ParserError::from(value))
     }
 }
-impl From<Box<ScannerError>> for Box<ParserError>{
+impl From<Box<ScannerError>> for Box<ParserError> {
     fn from(value: Box<ScannerError>) -> Self {
         Box::new(ParserError::from(*value))
     }

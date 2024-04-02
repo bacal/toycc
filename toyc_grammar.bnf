@@ -34,7 +34,8 @@
 
 <compound_statement> ::= "{" <declarations> <stmtcs> "}"
 
-<declarations> ::= <type> identifier ";" <declarations> | E
+<declarations> ::= <type> identifier ";" <other_decls>
+<other_decls> ::= <type> identifier ";" | E
 
 <stmtcs> ::= <statement> <stmtcs> | E
 
