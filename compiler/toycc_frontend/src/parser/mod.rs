@@ -183,7 +183,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         }
         .clone();
         params.push(VarDef::new(vec![identifier], tc_type.to_string()));
-        if let Some(mut param) = self.rep_formal_param()?{
+        if let Some(mut param) = self.rep_formal_param()? {
             params.append(&mut param)
         }
         Ok(Some(params))
@@ -198,7 +198,6 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
     }
 
-
     /// Todo: Finish compound statement implementation
     fn compound_statement(&mut self) -> Result<(), ParserError> {
         self.debug_print("entering compound_statement");
@@ -210,9 +209,8 @@ impl<'a, S: Read + Seek> Parser<S> {
             TokenKind::Type(t) => {
                 let tc_type = match &self.next_token()?.kind {
                     TokenKind::Type(Type::Int) | TokenKind::Type(Type::Char) => {}
-                    _ => {ParserErrorKind::Generic;}
+                    _ => return Err(self.create_error(ParserErrorKind::ExpectedType)),
                 };
-
             }
             _ => {
                 let statements = self.statements()?;
@@ -247,32 +245,31 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(())
     }
 
-
     fn null_statement(&mut self) -> Result<(), ParserError> {
         self.debug_print("entering null statement");
         self.accept(
             TokenKind::Delimiter(Delimiter::Semicolon),
-            ParserErrorKind::ExpectedDelimiter(';')
+            ParserErrorKind::ExpectedDelimiter(';'),
         )?;
-        
+
         self.debug_print("exiting null statement");
 
         Ok(())
     }
 
-    pub fn return_statement(&mut self) -> Result<(),ParserError>{
+    pub fn return_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
-    pub fn while_statement(&mut self) -> Result<(),ParserError>{
+    pub fn while_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
-    pub fn read_statement(&mut self) -> Result<(),ParserError>{
+    pub fn read_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
-    pub fn write_statement(&mut self) -> Result<(),ParserError>{
+    pub fn write_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
-    pub fn new_line_statement(&mut self) -> Result<(),ParserError>{
+    pub fn new_line_statement(&mut self) -> Result<(), ParserError> {
         todo!()
     }
     pub fn expression_statement(&mut self) -> Result<(),ParserError>{
