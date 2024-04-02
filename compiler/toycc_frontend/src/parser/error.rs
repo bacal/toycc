@@ -10,6 +10,7 @@ pub enum ParserErrorKind {
     ExpectedDelimiter(char),
     ExpectedSemicolon,
     ExpectedKeyword(),
+    ExpectedEquals
 }
 impl Default for ParserErrorKind {
     fn default() -> Self {
@@ -60,6 +61,7 @@ impl Diagnostic for ParserError {
     fn info(&self) -> String {
         match &self.kind {
             ParserErrorKind::ScannerError(s) => s.info(),
+            ParserErrorKind::ExpectedEquals => format!("expected '='"),
             ParserErrorKind::ExpectedDelimiter(d) => format!("expected delimiter: '{d}'"),
             _ => "".to_string(),
         }

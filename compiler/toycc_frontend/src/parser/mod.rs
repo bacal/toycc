@@ -4,9 +4,10 @@ pub mod error;
 use crate::parser::ast::{Definition, FuncDef, Program, Statement, VarDef};
 use crate::parser::error::{ParserError, ParserErrorKind};
 use crate::scanner::error::ScannerError;
-use crate::scanner::token::{Delimiter, Token, TokenKind, Keyword, Type};
+use crate::scanner::token::*;
 use crate::scanner::Scanner;
 use crate::BufferedStream;
+use std::env::join_paths;
 use std::io::{Read, Seek};
 
 pub struct Parser<S: Read + Seek> {
@@ -296,49 +297,201 @@ impl<'a, S: Read + Seek> Parser<S> {
 		todo!()
 	}
     pub fn expression(&mut self) -> Result<(),ParserError>{
-		todo!()
-	}
+		self.debug_print("entering expresssion");
+        let relop_expression = self.relop_expression()?;
+        let rep_expr = self.rep_expr()?;
+        self.debug_print("exiting expression");
+        Ok(())
+
+    }
     pub fn rep_expr(&mut self) -> Result<(),ParserError>{
-		todo!()
+        self.debug_print("entering rep expr");
+        match &self.next_token()?.kind {
+            TokenKind::AssignOP => {}
+            _ => {
+                self.rewind = true;
+                return Ok(());
+            }
+        }
+
+        let relop_expression = self.relop_expression()?;
+        self.debug_print("exiting rep expr");
+
+        Ok(())
 	}
     pub fn relop_expression(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering relop expression");
+        let simple_expression = self.simple_expression()?;
+        let rep_relop_expression = self.rep_relop_expr()?;
+        self.debug_print("exiting relop expression");
+        Ok(())
 	}
     pub fn rep_relop_expr(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering rep_relop_expr");
+        match &self.next_token()?.kind {
+            TokenKind::RelOP(RelOP::GreaterThan) |
+            TokenKind::RelOP(RelOP::GreaterEqual) |
+            TokenKind::RelOP(RelOP::LessEqual) |
+            TokenKind::RelOP(RelOP::LessThan) |
+            TokenKind::RelOP(RelOP::EqualsEquals) |
+            TokenKind::RelOP(RelOP::NotEquals) => {},
+
+            _ => {
+                self.rewind = true;
+                return Ok(())
+            }
+        }
+
+        let simple_expression = self.simple_expression()?;
+
+        self.debug_print("exiting rep_relop_expr");
+        Ok(())
+
+
 	}
     pub fn simple_expression(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering simple_expression");
+        let term = self.term()?;
+        let rep_simple_expr= self.rep_simple_expr()?;
+        self.debug_print("exiting simple_expression");
+        Ok(())
 	}
     pub fn rep_simple_expr(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering rep_simple_expr");
+        match &self.next_token()?.kind {
+            TokenKind::AddOP(AddOP::Plus) |
+            TokenKind::AddOP(AddOP::Minus) |
+            TokenKind::AddOP(AddOP::Or) => {},
+
+            _ => {
+                self.rewind = true;
+                return Ok(())
+            }
+        }
+
+        let term = self.term()?;
+
+        self.debug_print("exiting rep_simple_expr");
+
+        Ok(())
 	}
     pub fn term(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering term");
+        let primary = self.primary()?;
+        let rep_term = self.rep_term()?;
+        self.debug_print("exiting term");
+        Ok(())
 	}
     pub fn rep_term(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering rep_term");
+        match &self.next_token()?.kind {
+            TokenKind::MulOP(MulOP::Multiply) |
+            TokenKind::MulOP(MulOP::Divide) |
+            TokenKind::MulOP(MulOP::And) |
+            TokenKind::MulOP(MulOP::Mod) => {},
+
+            _ => {
+                self.rewind = true;
+                return Ok(())
+            }
+        }
+
+        let primary = self.primary()?;
+
+        self.debug_print("exiting rep_term");
+
+        Ok(())
 	}
     pub fn primary(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering primary");
+
+        // match &self.next_token()?.kind {
+        //     TokenKind::Identifier(id) => {
+        //         let fcall_option = self.fcall_option()?;
+        //         return Ok(())
+        //     },
+
+        //     TokenKind::Number => {
+        //         self.accept(TokenKind::Number(num));
+        //         Ok(())
+        //     }
+
+        //     _ => {Err(self.create_error(ParserErrorKind::Generic))}
+        // }
+
+        todo!()
 	}
     pub fn fcall_option(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering fcall_option");
+        match &self.next_token()?.kind {
+            TokenKind::Delimiter(Delimiter::RParen) => {
+                let function_call = self.function_call()?;
+                Ok(())
+            }
+
+            _ => {
+                self.rewind = true;
+                Ok(())
+            }
+        }
+
 	}
     pub fn not(&mut self) -> Result<(),ParserError>{
 		todo!()
 	}
     pub fn function_call(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering function_call");
+        self.accept(
+            TokenKind::Delimiter(Delimiter::LParen),
+            ParserErrorKind::ExpectedDelimiter('(')
+        )?;
+        let aparam_option = self.aparam_option()?;
+        self.accept(
+            TokenKind::Delimiter(Delimiter::RParen),
+            ParserErrorKind::ExpectedDelimiter(')')
+        )?;
+        self.debug_print("exiting function_call");
+        Ok(())
 	}
     pub fn aparam_option(&mut self) -> Result<(),ParserError>{
-		todo!()
+		// match &self.next_token()?.kind {
+        //     TokenKind::Identifier(id) |
+        //     TokenKind::Number { num, sci = false} |
+        //     TokenKind::String(string) |
+        //     TokenKind::CharLiteral(ch) |
+        //     TokenKind::Delimiter(Delimiter::LParen) |
+        //     TokenKind::AddOP(AddOP::Minus) => {
+        //         self.actual_parameters();
+        //         Ok(())
+        //     }
+
+        //     _ => {
+        //         self.rewind = true;
+        //         Ok(())
+        //     }
+        // }
+
+        todo!();
 	}
     pub fn actual_parameters(&mut self) -> Result<(),ParserError>{
-		todo!()
+		self.debug_print("entering actual_parameters");
+        let expression = self.expression()?;
+        let rep_aparam_expr = self.rep_aparam_expr()?;
+        self.debug_print("exiting actual_parameters");
+        Ok(())
 	}
+
     pub fn rep_aparam_expr(&mut self) -> Result<(),ParserError>{
-		todo!()
+		match &self.next_token()?.kind{
+            TokenKind::Delimiter(Delimiter::Comma) => {}
+            _ => {
+                self.rewind = true;
+                return Ok(())
+            }
+        }
+
+        let expression = self.expression()?;
+        Ok(())
 	}
 
     fn create_error(&mut self, kind: ParserErrorKind) -> ParserError {
