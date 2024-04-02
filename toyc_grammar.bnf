@@ -1,7 +1,9 @@
-<toy_c_program> ::= <def> "EOF"
+// Unescaped E is Epsilon
+
+<toy_c_program> ::= <def> EOF
 
 <def> ::= <definition> <def> | E
-<definition> ::= <type> <identifier> <func_def>
+<definition> ::= <type> identifier <func_def>
 
 <func_def> ::= <function_definition> | ";"
 
@@ -12,8 +14,8 @@
 <function_body> ::= <compound_statement>
 <function_header> ::= "(" <fpl> ")"
 <fpl> ::= <formal_param_list> | E
-<formal_param_list> ::= <type> <identifier> <tid>
-<tid> ::= "," <type> <identifier> <tid> | E
+<formal_param_list> ::= <type> identifier <rep_formal_param>
+<rep_formal_param> ::= "," <type> identifier <rep_formal_param> | E
 
 <statement> ::= <expression_statement>
                 | <break_statement>
@@ -30,9 +32,10 @@
 
 <break_statement> ::= "break" ";"
 
-<compound_statement> ::= "{" <tidcs> <stmtcs> "}"
+<compound_statement> ::= "{" <declarations> <stmtcs> "}"
 
-<tidcs> ::= <type> <identifier> ";" <tidcs> | E
+<declarations> ::= <type> identifier ";" <other_decls>
+<other_decls> ::= <type> identifier ";" | E
 
 <stmtcs> ::= <statement> <stmtcs> | E
 
@@ -48,29 +51,29 @@
 
 <while_statement> ::= "while" "(" <expression> ")" <statement>
 
-<read_statement> ::= "read" "(" <identifier> <read_rep> ")" ";"
-<read_rep> ::= "," <identifier> <read_rep> | E
+<read_statement> ::= "read" "(" identifier <read_rep> ")" ";"
+<read_rep> ::= "," identifier <read_rep> | E
 
 <write_statement> ::= "write" "(" <actual_parameters> ")" ";"
 
 <new_line_statement> ::= "newline" ";"
 
 <expression> ::= <relop_expression> <rep_expr>
-<rep_expr> ::= <assign_op> <relop_expression> <rep_expr> | E
+<rep_expr> ::= assignop <relop_expression> <rep_expr> | E
 
 <relop_expression> ::= <simple_expression> <rep_relop_expr>
-<rep_relop_expr> ::= <relop> <simple_expression> <rep_relop_expr> | E
+<rep_relop_expr> ::= relop <simple_expression> <rep_relop_expr> | E
 
 <simple_expression> ::= <term> <rep_simple_expr>
-<rep_simple_expr> ::= <addop> <term> <rep_simple_expr> | E
+<rep_simple_expr> ::= addop <term> <rep_simple_expr> | E
 
 <term> ::= <primary> <rep_term>
-<rep_term> ::= <mulop> <primary> <rep_term> | E
+<rep_term> ::= mulop <primary> <rep_term> | E
 
-<primary> ::= <identifier> <fcall_option>
-            | <number>
-            | <string_constant>
-            | <char_constant>
+<primary> ::= identifier <fcall_option>
+            | number
+            | string_constant
+            | char_constant
             | "(" <expression> ")"
             | <not> <primary>
 
@@ -83,35 +86,3 @@
 
 <actual_parameters> ::= <expression> <rep_aparam_expr>
 <rep_aparam_expr> ::= "," <expression> <rep_aparam_expr> | E
-
-
-
-
-<letter> ::= "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
-<digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-
-<letter_repeat> ::= <letter> <letter_repeat> | E
-
-<id_repeat> ::= <letter_repeat> <digits> | E
-
-<identifier> ::= <letter> <id_repeat>
-
-
-<digits> ::= <digit> <digits> | E
-<optional_fraction> ::= "." <digits> | E
-<optional_exponent> ::= "E" <optional_sign> <digits> | E
-<optional_sign> ::= "+" | "-" | E
-<number> ::= <digits> <optional_fraction> <optional_exponent>
-
-<char_constant> ::= "'" <letter> <digits> "'"
-
-
-<string_constant> ::= "\"" <digits> <letter> "\""
-
-<assign_op> ::= "="
-
-<relop> ::= "==" | "!=" | "<" | ">" | ">=" | "<="
-
-<mulop> ::= "*" | "/" | "%" | "&&"
-
-<addop> ::= "+" | "-" | "||"

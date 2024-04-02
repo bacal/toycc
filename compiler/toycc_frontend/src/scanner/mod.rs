@@ -29,8 +29,7 @@ enum State {
     SciFirst,
 }
 
-pub struct Scanner<'a, S: Read + Seek> {
-    stream_name: &'a str,
+pub struct Scanner<S: Read + Seek> {
     pub stream: BufferedStream<S>,
     buffer: String,
     state: State,
@@ -38,17 +37,12 @@ pub struct Scanner<'a, S: Read + Seek> {
     debug: Option<u32>,
     lines_read: usize,
     comments_nested: Vec<(usize, usize)>,
-    previous_location: (usize, usize),
+    pub(crate) previous_location: (usize, usize),
     verbose: bool,
 }
 
-impl<'a, S: Read + Seek> Scanner<'a, S> {
-    pub fn new(
-        stream: BufferedStream<S>,
-        stream_name: &'a str,
-        debug: Option<u32>,
-        verbose: bool,
-    ) -> Self {
+impl<S: Read + Seek> Scanner<S> {
+    pub fn new(stream: BufferedStream<S>, debug: Option<u32>, verbose: bool) -> Self {
         Self {
             debug,
             verbose,
@@ -57,7 +51,6 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
             buffer: String::new(),
             lines_read: 0,
             comments_nested: vec![],
-            stream_name,
             position: 0,
             previous_location: (0, 0),
         }
@@ -145,10 +138,10 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
                             return Ok(self.create_token(TokenKind::Delimiter(Delimiter::RCurly), 1))
                         }
                         ':' => {
-                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::Colon), 1))
                         }
                         ',' => {
-                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::LParen), 1))
+                            return Ok(self.create_token(TokenKind::Delimiter(Delimiter::Comma), 1))
                         }
                         _ => {
                             println!(
@@ -449,20 +442,29 @@ impl<'a, S: Read + Seek> Scanner<'a, S> {
         };
         let line = match kind {
             ScannerErrorKind::IllegalCharacter(_) => None,
-            _ => {
-                let _ = self.stream.rewind();
-                Some(self.stream.nth(location.0 - 1).unwrap().trim().to_string())
-            }
+            _ => self.error_get_line(location),
         };
         ScannerError::new(
             kind,
             line,
             location,
             len,
-            self.stream_name.to_string(),
+            self.stream.name.clone().unwrap_or_default(),
             help,
         )
     }
+
+    pub(crate) fn error_get_line(&mut self, location: (usize, usize)) -> Option<String> {
+        let _ = self.stream.rewind();
+        Some(
+            self.stream
+                .nth(location.0 - 1)
+                .unwrap_or_default()
+                .trim_end()
+                .to_string(),
+        )
+    }
+
     fn keyword_or_id_token(&mut self) -> Token {
         let kind = match self.buffer.as_str() {
             "char" => TokenKind::Type(Type::Char),
@@ -501,8 +503,7 @@ mod tests {
     fn test_scanner() {
         let data = "3+3";
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(data.as_bytes())),
-            "name.tc",
+            BufferedStream::new(Cursor::new(data.as_bytes()), Some("sample.tc".to_string())),
             None,
             false,
         );
@@ -541,8 +542,7 @@ mod tests {
                                 // this is a comment"#;
 
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-            "sample.tc",
+            BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
             false,
         );
@@ -587,8 +587,7 @@ mod tests {
     fn pass_string_literal() {
         const SAMPLE_DATA: &str = r#""Hello world! :D""#;
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-            "sample.tc",
+            BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
             false,
         );
@@ -602,8 +601,7 @@ mod tests {
     fn pass_complex_string_literal() {
         const SAMPLE_DATA: &str = "\"Hello \t\rd + a b c world! :D\"";
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-            "sample.tc",
+            BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
             false,
         );
@@ -617,8 +615,7 @@ mod tests {
     fn fail_string_literal() {
         const SAMPLE_DATA: &str = "\"Hello world!\n\"";
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-            "sample.tc",
+            BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
             false,
         );
@@ -629,8 +626,7 @@ mod tests {
     fn pass_char_literal() {
         const SAMPLE_DATA: &str = "'\n'";
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-            "sample.tc",
+            BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
             false,
         );
@@ -644,8 +640,7 @@ mod tests {
     fn fail_char_literal_overrun() {
         const SAMPLE_DATA: &str = "'Hello world!";
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-            "sample.tc",
+            BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
             false,
         );
@@ -655,8 +650,7 @@ mod tests {
     fn fail_char_literal_unmatched() {
         const SAMPLE_DATA: &str = "'a!";
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-            "sample.tc",
+            BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
             false,
         );
@@ -674,8 +668,7 @@ mod tests {
                                     comment */
                                     f = 2.0E+1E3"#;
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-            "sample.tc",
+            BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
             false,
         );
@@ -703,8 +696,7 @@ mod tests {
     fn test_number_invalid_exp() {
         const SAMPLE_DATA: &str = r#"2E+1E1"#;
         let mut scanner = Scanner::new(
-            BufferedStream::new(Cursor::new(SAMPLE_DATA)),
-            "sample.tc",
+            BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
             false,
         );

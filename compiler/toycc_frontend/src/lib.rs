@@ -4,6 +4,7 @@ pub use parser::Parser;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 
 pub struct BufferedStream<S: Read + Seek> {
+    pub name: Option<String>,
     reader: BufReader<S>,
     buffer: String,
     eof: bool,
@@ -13,9 +14,10 @@ impl<S: Read + Seek> BufferedStream<S>
 where
     S: Read + Seek,
 {
-    pub fn new(stream: S) -> Self {
+    pub fn new(stream: S, name: Option<String>) -> Self {
         let reader = BufReader::new(stream);
         Self {
+            name,
             reader,
             buffer: String::new(),
             eof: false,

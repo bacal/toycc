@@ -1,55 +1,91 @@
-type Identifier = String;
-type Type = String;
-type VarDef = (Identifier, Vec<Identifier>, Type);
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Operator {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    And,
-    Or,
-    Mod,
-    Less,
-    LessEq,
-    Greater,
-    GreaterEq,
-    NotEq,
+#[derive(Debug)]
+pub enum Program {
+    Definition(Vec<Definition>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Expression {
-    Number(f64),
-    Identifier(Identifier),
-    CharLiteral(Option<char>),
-    StringLiteral(String),
-    FuncCall(Identifier, Vec<Expression>),
-    Expr(Operator, Box<Expression>, Box<Expression>),
-    Minus(Box<Expression>),
-    Not(Box<Expression>),
+#[derive(Debug)]
+pub enum Definition {
+    FuncDef(FuncDef),
+    VarDef(VarDef),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-#[allow(clippy::enum_variant_names)]
+#[derive(Debug)]
+pub struct FuncDef {
+    identifier: String,
+    toyc_type: String,
+    var_def: Vec<VarDef>,
+    statement: Statement,
+}
+
+#[derive(Debug)]
+pub struct VarDef {
+    identifiers: Vec<String>,
+    toyc_type: String,
+}
+
+impl FuncDef {
+    pub fn new(
+        identifier: String,
+        toyc_type: String,
+        var_def: Vec<VarDef>,
+        statement: Statement,
+    ) -> Self {
+        Self {
+            identifier,
+            toyc_type,
+            var_def,
+            statement,
+        }
+    }
+}
+
+impl VarDef {
+    pub fn new(identifiers: Vec<String>, toyc_type: String) -> Self {
+        Self {
+            identifiers,
+            toyc_type,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Statement {
-    ExprState(Expression),
-    BreakState,
+    Expression(Expression),
+    Break,
     BlockState(Vec<VarDef>, Vec<Statement>),
     IfState(Expression, Box<Statement>, Option<Box<Statement>>),
     NullState,
     ReturnState(Option<Expression>),
     WhileState(Expression, Box<Statement>),
-    ReadState(Identifier, Vec<Identifier>),
-    WriteState(Expression, Vec<Expression>),
+    ReadState(Vec<String>),
+    WriteState(Vec<Expression>),
     NewLineState,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Definition {
-    FuncDef(Identifier, Type, Vec<VarDef>, Statement),
-    VarDef(VarDef),
+#[derive(Debug)]
+pub enum Expression {
+    Number(f64),
+    Identifier(String),
+    CharLiteral(char),
+    StringLiteral(String),
+    FuncCall(String, Vec<Expression>),
+    Expr(Operator, Box<Expression>, Box<Expression>),
+    Not(Box<Expression>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Program(Vec<Definition>);
+#[derive(Debug)]
+pub enum Operator {
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
+    Or,
+    And,
+    LessEqual,
+    LessThan,
+    GreaterEqual,
+    GreaterThan,
+    Assign,
+    NotEqual,
+}
