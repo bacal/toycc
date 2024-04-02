@@ -372,8 +372,10 @@ impl<'a, S: Read + Seek> Parser<S> {
     }
     fn expression_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering expression_statement");
-        todo!();
+        let expression = self.expression();
         self.debug_print("exiting expression_statement");
+        self.accept(TokenKind::Delimiter(Delimiter::Semicolon), ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon))?;
+        Ok(())
     }
     fn break_statement(&mut self) -> Result<(), Box<ParserError>> {
         self.debug_print("entering break_statement");
