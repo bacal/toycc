@@ -244,33 +244,9 @@ impl<'a, S: Read + Seek> Parser<S> {
             ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon),
         )?;
 
-        declarations.append(&mut self.other_decls()?);
+        declarations.append(&mut self.declarations()?);
 
         self.debug_print("exiting declarations");
-
-        Ok(declarations)
-    }
-
-    fn other_decls(&mut self) -> Result<Vec<VarDef>, Box<ParserError>> {
-        let mut declarations = vec![];
-
-        let toyc_type = match &self.next_token()?.kind {
-            TokenKind::Type(t) => t.clone(),
-            _ => {
-                println!("REWINDING");
-                self.rewind = true;
-                return Ok(declarations);
-            }
-        };
-
-        match &self.next_token()?.kind {
-            TokenKind::Identifier(id) => {
-                declarations.push(VarDef::new(vec![id.clone()], toyc_type))
-            }
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
-        };
-
-        declarations.append(&mut self.other_decls()?);
 
         Ok(declarations)
     }
