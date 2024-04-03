@@ -1,3 +1,5 @@
+use crate::scanner::token::{AddOP, MulOP, RelOP, Type};
+
 #[derive(Debug)]
 pub enum Program {
     Definition(Vec<Definition>),
@@ -20,7 +22,7 @@ pub struct FuncDef {
 #[derive(Debug)]
 pub struct VarDef {
     identifiers: Vec<String>,
-    toyc_type: String,
+    toyc_type: Type,
 }
 
 impl FuncDef {
@@ -40,7 +42,7 @@ impl FuncDef {
 }
 
 impl VarDef {
-    pub fn new(identifiers: Vec<String>, toyc_type: String) -> Self {
+    pub fn new(identifiers: Vec<String>, toyc_type: Type) -> Self {
         Self {
             identifiers,
             toyc_type,
@@ -53,12 +55,12 @@ pub enum Statement {
     Expression(Expression),
     Break,
     BlockState(Vec<VarDef>, Vec<Statement>),
-    IfState(Expression, Box<Statement>, Option<Box<Statement>>),
+    IfState(Expression, Box<Statement>, Box<Option<Statement>>),
     NullState,
     ReturnState(Option<Expression>),
     WhileState(Expression, Box<Statement>),
-    ReadState(Vec<String>),
-    WriteState(Vec<Expression>),
+    ReadState(String, Option<Vec<String>>),
+    WriteState(Expression, Option<Vec<Expression>>),
     NewLineState,
 }
 
@@ -66,15 +68,17 @@ pub enum Statement {
 pub enum Expression {
     Number(f64),
     Identifier(String),
-    CharLiteral(char),
+    CharLiteral(Option<char>),
     StringLiteral(String),
     FuncCall(String, Vec<Expression>),
     Expr(Operator, Box<Expression>, Box<Expression>),
     Not(Box<Expression>),
+    Minus(Box<Expression>),
 }
 
 #[derive(Debug)]
 pub enum Operator {
+    Assign,
     Plus,
     Minus,
     Multiply,
@@ -86,6 +90,57 @@ pub enum Operator {
     LessThan,
     GreaterEqual,
     GreaterThan,
-    Assign,
+    Equal,
     NotEqual,
+}
+
+impl From<AddOP> for Operator {
+    fn from(value: AddOP) -> Self {
+        match value {
+            AddOP::Plus => Self::Plus,
+            AddOP::Minus => Self::Minus,
+            AddOP::Or => Self::Or,
+        }
+    }
+}
+impl From<&AddOP> for Operator {
+    fn from(value: &AddOP) -> Self {
+        value.into()
+    }
+}
+
+impl From<&RelOP> for Operator {
+    fn from(value: &RelOP) -> Self {
+        value.into()
+    }
+}
+
+impl From<&MulOP> for Operator {
+    fn from(value: &MulOP) -> Self {
+        value.into()
+    }
+}
+
+impl From<MulOP> for Operator {
+    fn from(value: MulOP) -> Self {
+        match value {
+            MulOP::Multiply => Self::Multiply,
+            MulOP::Divide => Self::Divide,
+            MulOP::Mod => Self::Modulo,
+            MulOP::And => Self::And,
+        }
+    }
+}
+
+impl From<RelOP> for Operator {
+    fn from(value: RelOP) -> Self {
+        match value {
+            RelOP::EqualsEquals => Self::Equal,
+            RelOP::NotEquals => Self::NotEqual,
+            RelOP::LessThan => Self::LessThan,
+            RelOP::LessEqual => Self::LessEqual,
+            RelOP::GreaterEqual => Self::GreaterEqual,
+            RelOP::GreaterThan => Self::GreaterThan,
+        }
+    }
 }

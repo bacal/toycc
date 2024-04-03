@@ -1,7 +1,7 @@
 mod ast;
 pub mod error;
 
-use crate::parser::ast::{Definition, FuncDef, Program, Statement, VarDef};
+use crate::parser::ast::*;
 use crate::parser::error::{ParserError, ParserErrorKind};
 use crate::scanner::error::ScannerError;
 use crate::scanner::token::*;
@@ -95,7 +95,7 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         let def = match &self.next_token()?.kind {
             TokenKind::Delimiter(Delimiter::Semicolon) => {
-                Definition::VarDef(VarDef::new(vec![identifier], tc_type.to_string()))
+                Definition::VarDef(VarDef::new(vec![identifier], tc_type))
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.rewind = true;
@@ -120,7 +120,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         let header = self.func_header()?;
         let body = self.func_body()?;
         self.debug_print("exiting func_def");
-        Ok((header, Statement::BlockState(vec![], vec![])))
+        Ok((header, body))
     }
     fn func_header(&mut self) -> Result<Vec<VarDef>, Box<ParserError>> {
         self.debug_print("entering func_header");
@@ -156,7 +156,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         }
         .clone();
 
-        param_list.push(VarDef::new(vec![identifier], tc_type.to_string()));
+        param_list.push(VarDef::new(vec![identifier], tc_type));
         param_list.append(&mut self.rep_formal_param()?.unwrap_or_default());
         self.debug_print("exiting formal_param_list");
         Ok(param_list)
@@ -183,40 +183,43 @@ impl<'a, S: Read + Seek> Parser<S> {
             _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
         }
         .clone();
-        params.push(VarDef::new(vec![identifier], tc_type.to_string()));
+        params.push(VarDef::new(vec![identifier], tc_type));
         if let Some(mut param) = self.rep_formal_param()? {
             params.append(&mut param)
         }
         Ok(Some(params))
     }
 
-    fn func_body(&mut self) -> Result<(), Box<ParserError>> {
+    fn func_body(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering func_body");
 
         let compound_statement = self.compound_statement()?;
 
         self.debug_print("exiting func_body");
-        Ok(())
+        Ok(compound_statement)
     }
 
-    fn compound_statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn compound_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering compound_statement");
         self.accept(
             TokenKind::Delimiter(Delimiter::LCurly),
             ParserErrorKind::ExpectedDelimiter(Delimiter::LCurly),
         )?;
         let declarations = self.declarations()?;
-        let stmts = self.statements()?;
+        let statements = self.statements()?;
 
         self.accept(
             TokenKind::Delimiter(Delimiter::RCurly),
             ParserErrorKind::ExpectedDelimiter(Delimiter::RCurly),
         )?;
         self.debug_print("exiting compound_statement");
-        Ok(())
+        Ok(Statement::BlockState(
+            declarations,
+            statements.unwrap_or_default(),
+        ))
     }
 
-    fn declarations(&mut self) -> Result<Vec<(Type, String)>, Box<ParserError>> {
+    fn declarations(&mut self) -> Result<Vec<VarDef>, Box<ParserError>> {
         self.debug_print("entering declarations");
         let mut declarations = vec![];
 
@@ -229,8 +232,10 @@ impl<'a, S: Read + Seek> Parser<S> {
             }
         };
 
-        let identifier = match &self.next_token()?.kind {
-            TokenKind::Identifier(id) => declarations.push((toyc_type, id.clone())),
+        match &self.next_token()?.kind {
+            TokenKind::Identifier(id) => {
+                declarations.push(VarDef::new(vec![id.clone()], toyc_type))
+            }
             _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
         };
 
@@ -246,7 +251,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(declarations)
     }
 
-    fn other_decls(&mut self) -> Result<Vec<(Type, String)>, Box<ParserError>> {
+    fn other_decls(&mut self) -> Result<Vec<VarDef>, Box<ParserError>> {
         let mut declarations = vec![];
 
         let toyc_type = match &self.next_token()?.kind {
@@ -258,8 +263,10 @@ impl<'a, S: Read + Seek> Parser<S> {
             }
         };
 
-        let identifier = match &self.next_token()?.kind {
-            TokenKind::Identifier(id) => declarations.push((toyc_type, id.clone())),
+        match &self.next_token()?.kind {
+            TokenKind::Identifier(id) => {
+                declarations.push(VarDef::new(vec![id.clone()], toyc_type))
+            }
             _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
         };
 
@@ -267,21 +274,22 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         Ok(declarations)
     }
-    fn statements(&mut self) -> Result<Option<()>, Box<ParserError>> {
+    fn statements(&mut self) -> Result<Option<Vec<Statement>>, Box<ParserError>> {
         self.debug_print("entering statements");
+        let mut statements = vec![];
         let x = match &self.next_token()?.kind {
-            TokenKind::Keyword(Keyword::Break) => Some(self.break_statement()?),
+            TokenKind::Keyword(Keyword::Break) => self.break_statement()?,
             TokenKind::Delimiter(Delimiter::LCurly) => {
                 self.rewind = true;
-                Some(self.compound_statement()?)
+                self.compound_statement()?
             }
-            TokenKind::Keyword(Keyword::If) => Some(self.if_statement()?),
-            TokenKind::Delimiter(Delimiter::Semicolon) => Some(self.null_statement()?),
+            TokenKind::Keyword(Keyword::If) => self.if_statement()?,
+            TokenKind::Delimiter(Delimiter::Semicolon) => self.null_statement()?,
             TokenKind::Keyword(Keyword::Return) => self.return_statement()?,
-            TokenKind::Keyword(Keyword::While) => Some(self.while_statement()?),
-            TokenKind::Keyword(Keyword::Read) => Some(self.read_statement()?),
-            TokenKind::Keyword(Keyword::Write) => Some(self.write_statement()?),
-            TokenKind::Keyword(Keyword::Newline) => Some(self.new_line_statement()?),
+            TokenKind::Keyword(Keyword::While) => self.while_statement()?,
+            TokenKind::Keyword(Keyword::Read) => self.read_statement()?,
+            TokenKind::Keyword(Keyword::Write) => self.write_statement()?,
+            TokenKind::Keyword(Keyword::Newline) => self.new_line_statement()?,
             TokenKind::Identifier(_)
             | TokenKind::Number { .. }
             | TokenKind::String(_)
@@ -290,7 +298,7 @@ impl<'a, S: Read + Seek> Parser<S> {
             | TokenKind::Delimiter(Delimiter::Not)
             | TokenKind::AddOP(AddOP::Minus) => {
                 self.rewind = true;
-                Some(self.expression_statement()?)
+                self.expression_statement()?
             }
             _ => {
                 self.rewind = true;
@@ -298,61 +306,61 @@ impl<'a, S: Read + Seek> Parser<S> {
                 return Ok(None);
             }
         };
-        self.statements()?;
+        statements.push(x);
+        statements.append(&mut self.statements()?.unwrap_or_default());
         self.debug_print("exiting statements");
-        Ok(x)
+        Ok(Some(statements))
     }
 
-    /// Todo: finish if_statement production implementation.
-    fn if_statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn if_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering if_statement");
         self.accept(
             TokenKind::Delimiter(Delimiter::LParen),
             ParserErrorKind::ExpectedDelimiter(Delimiter::LParen),
         )?;
-        let expression = self.expression();
+        let expression = self.expression()?;
         self.accept(
             TokenKind::Delimiter(Delimiter::RParen),
             ParserErrorKind::ExpectedDelimiter(Delimiter::RParen),
         )?;
-        let statement = self.statement();
-        let toyc_else = self.else_stmt();
+        let statement = self.statement()?;
+        let toyc_else = self.else_stmt()?;
 
-        Ok(())
+        Ok(Statement::IfState(
+            expression,
+            Box::new(statement),
+            Box::new(toyc_else),
+        ))
     }
 
-    fn statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering statement");
 
         let statement = match self.next_token()?.kind {
-            TokenKind::Keyword(Keyword::Break) => self.break_statement(),
+            TokenKind::Keyword(Keyword::Break) => self.break_statement()?,
             TokenKind::Delimiter(Delimiter::LCurly) => {
                 self.rewind = true;
-                self.compound_statement()?;
-                Ok(())
+                self.compound_statement()?
             }
-            TokenKind::Keyword(Keyword::If) => self.if_statement(),
-            TokenKind::Delimiter(Delimiter::Semicolon) => self.null_statement(),
-            TokenKind::Keyword(Keyword::Return) => {
-                self.return_statement();
-                Ok(())
-            }
-            TokenKind::Keyword(Keyword::While) => self.while_statement(),
-            TokenKind::Keyword(Keyword::Read) => self.read_statement(),
-            TokenKind::Keyword(Keyword::Write) => self.write_statement(),
-            TokenKind::Keyword(Keyword::Newline) => self.new_line_statement(),
+            TokenKind::Keyword(Keyword::If) => self.if_statement()?,
+            TokenKind::Delimiter(Delimiter::Semicolon) => self.null_statement()?,
+            TokenKind::Keyword(Keyword::Return) => self.return_statement()?,
+            TokenKind::Keyword(Keyword::While) => self.while_statement()?,
+            TokenKind::Keyword(Keyword::Read) => self.read_statement()?,
+            TokenKind::Keyword(Keyword::Write) => self.write_statement()?,
+            TokenKind::Keyword(Keyword::Newline) => self.new_line_statement()?,
             _ => {
                 self.rewind = true;
-                self.expression_statement()
+                self.expression_statement()?
             }
         };
 
         self.debug_print("exiting statement");
 
-        Ok(())
+        Ok(statement)
     }
 
-    fn null_statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn null_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering null statement");
 
         self.accept(
@@ -362,33 +370,28 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         self.debug_print("exiting null statement");
 
-        Ok(())
+        Ok(Statement::NullState)
     }
 
-    fn return_statement(&mut self) -> Result<Option<()>, Box<ParserError>> {
+    fn return_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering return_statement");
-        println!("{}", &self.next_token()?.kind);
-        self.rewind = true;
         let expr = match &self.next_token()?.kind {
             TokenKind::Delimiter(Delimiter::Semicolon) => None,
             _ => {
+                self.rewind = true;
                 let expr = Some(self.expression()?);
-                match &self.next_token()?.kind {
-                    TokenKind::Delimiter(Delimiter::Semicolon) => {}
-                    _ => {
-                        return Err(self.create_error(ParserErrorKind::ExpectedDelimiter(
-                            Delimiter::Semicolon,
-                        )))
-                    }
-                }
+                self.accept(
+                    TokenKind::Delimiter(Delimiter::Semicolon),
+                    ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon),
+                )?;
                 expr
             }
         };
 
         self.debug_print("exiting return_statement");
-        Ok(expr)
+        Ok(Statement::ReturnState(expr))
     }
-    fn while_statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn while_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering while_statement");
 
         self.accept(
@@ -406,18 +409,17 @@ impl<'a, S: Read + Seek> Parser<S> {
         let statement = self.statement()?;
 
         self.debug_print("exiting while_statement");
-        Ok(())
+        Ok(Statement::WhileState(expr, Box::new(statement)))
     }
-    fn read_statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn read_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering read_statement");
-
         self.accept(
             TokenKind::Delimiter(Delimiter::LParen),
             ParserErrorKind::ExpectedDelimiter(Delimiter::LParen),
         )?;
 
         let identifier = match &self.next_token()?.kind {
-            TokenKind::Identifier(id) => id,
+            TokenKind::Identifier(id) => id.clone(),
             _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
         };
 
@@ -434,9 +436,12 @@ impl<'a, S: Read + Seek> Parser<S> {
         )?;
 
         self.debug_print("exiting read_statement");
-        Ok(())
+        Ok(Statement::ReadState(
+            identifier,
+            (!others.is_empty()).then_some(others),
+        ))
     }
-    fn write_statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn write_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering write_statement");
 
         self.accept(
@@ -444,7 +449,7 @@ impl<'a, S: Read + Seek> Parser<S> {
             ParserErrorKind::ExpectedDelimiter(Delimiter::LParen),
         )?;
 
-        let params = self.actual_parameters()?;
+        let mut params = self.actual_parameters()?;
 
         self.accept(
             TokenKind::Delimiter(Delimiter::RParen),
@@ -456,44 +461,45 @@ impl<'a, S: Read + Seek> Parser<S> {
             ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon),
         )?;
         self.debug_print("exiting write_statement");
-        Ok(())
+        let x = params.remove(0);
+        Ok(Statement::WriteState(
+            x,
+            (!params.is_empty()).then_some(params),
+        ))
     }
-    fn new_line_statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn new_line_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering new_line_statement");
         self.accept(
             TokenKind::Delimiter(Delimiter::Semicolon),
             ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon),
         )?;
         self.debug_print("exiting new_line_statement");
-        Ok(())
+        Ok(Statement::NewLineState)
     }
-    fn expression_statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn expression_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering expression_statement");
-        let expression = self.expression();
+        let expression = self.expression()?;
         self.accept(
             TokenKind::Delimiter(Delimiter::Semicolon),
             ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon),
         )?;
         self.debug_print("exiting expression_statement");
-        Ok(())
+        Ok(Statement::Expression(expression))
     }
-    fn break_statement(&mut self) -> Result<(), Box<ParserError>> {
+    fn break_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering break_statement");
         self.accept(
             TokenKind::Delimiter(Delimiter::Semicolon),
             ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon),
         )?;
         self.debug_print("exiting break_statement");
-        Ok(())
+        Ok(Statement::Break)
     }
 
-    fn else_stmt(&mut self) -> Result<Option<()>, Box<ParserError>> {
+    fn else_stmt(&mut self) -> Result<Option<Statement>, Box<ParserError>> {
         self.debug_print("entering else_stmt");
         let else_statement = match &self.next_token()?.kind {
-            TokenKind::Keyword(Keyword::Else) => {
-                let statement = self.statement()?;
-                Some(())
-            }
+            TokenKind::Keyword(Keyword::Else) => Some(self.statement()?),
             _ => {
                 self.rewind = true;
                 None
@@ -502,21 +508,11 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("exiting else_stmt");
         Ok(else_statement)
     }
-    fn return_expr(&mut self) -> Result<Option<()>, Box<ParserError>> {
-        self.debug_print("entering return_expr");
-        self.rewind = true;
-        let a = if let Ok(expression) = self.expression() {
-            Some(())
-        } else {
-            None
-        };
-        self.debug_print("exiting return_expr");
-        Ok(a)
-    }
+
     fn read_rep(&mut self) -> Result<Vec<String>, Box<ParserError>> {
         let mut repetitions = vec![];
         if self.next_token()?.kind == TokenKind::Delimiter(Delimiter::Comma) {
-            let identifier = match &self.next_token()?.kind {
+            match &self.next_token()?.kind {
                 TokenKind::Identifier(id) => repetitions.push(id.clone()),
                 _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
             };
@@ -527,158 +523,157 @@ impl<'a, S: Read + Seek> Parser<S> {
         Ok(repetitions)
     }
 
-    fn expression(&mut self) -> Result<(), Box<ParserError>> {
+    fn expression(&mut self) -> Result<Expression, Box<ParserError>> {
         self.debug_print("entering expresssion");
         let relop_expression = self.relop_expression()?;
-        let rep_expr = self.rep_expr()?;
+        let rep_expr = self.rep_expr(relop_expression)?;
         self.debug_print("exiting expression");
-        Ok(())
+        Ok(rep_expr)
     }
-    fn rep_expr(&mut self) -> Result<Option<()>, Box<ParserError>> {
+    fn rep_expr(&mut self, relop_expression: Expression) -> Result<Expression, Box<ParserError>> {
         self.debug_print("entering rep_expr");
 
         let rep_expr = match &self.next_token()?.kind {
             TokenKind::AssignOP => {
                 let relop = self.relop_expression()?;
-                let x = self.rep_expr()?;
-                Some(())
+                let rep = self.rep_expr(relop)?;
+                Expression::Expr(Operator::Assign, Box::new(relop_expression), Box::new(rep))
             }
             _ => {
                 self.rewind = true;
-                None
+                relop_expression
             }
         };
 
         self.debug_print("exiting rep_expr");
         Ok(rep_expr)
     }
-    fn relop_expression(&mut self) -> Result<(), Box<ParserError>> {
+    fn relop_expression(&mut self) -> Result<Expression, Box<ParserError>> {
         self.debug_print("entering relop_expression");
         let expression = self.simple_expression()?;
 
-        let relop_expression = self.rep_relop_expr()?;
+        let relop_expression = self.rep_relop_expr(expression)?;
         self.debug_print("exiting relop_expression");
 
-        Ok(())
+        Ok(relop_expression)
     }
-    fn rep_relop_expr(&mut self) -> Result<Option<()>, Box<ParserError>> {
+    fn rep_relop_expr(&mut self, expression: Expression) -> Result<Expression, Box<ParserError>> {
         self.debug_print("entering rep_relop_expr");
-        let relops = match &self.next_token()?.kind {
-            TokenKind::RelOP(RelOP::GreaterThan)
-            | TokenKind::RelOP(RelOP::GreaterEqual)
-            | TokenKind::RelOP(RelOP::LessEqual)
-            | TokenKind::RelOP(RelOP::LessThan)
-            | TokenKind::RelOP(RelOP::EqualsEquals)
-            | TokenKind::RelOP(RelOP::NotEquals) => {
+        let relops = match self.next_token()?.kind.clone() {
+            TokenKind::RelOP(op) => {
                 let simple_expression = self.simple_expression()?;
-                let rep = self.rep_relop_expr()?;
-                Ok(Some(()))
+                let rep = self.rep_relop_expr(simple_expression)?;
+                Expression::Expr(op.into(), Box::new(expression), Box::new(rep))
             }
 
             _ => {
                 self.rewind = true;
-                Ok(None)
+                expression
             }
         };
         self.debug_print("exiting rep_relop_expr");
-        relops
+        Ok(relops)
     }
-    fn simple_expression(&mut self) -> Result<(), Box<ParserError>> {
+    fn simple_expression(&mut self) -> Result<Expression, Box<ParserError>> {
         self.debug_print("entering simple_expression");
         let term = self.term()?;
-        let rep_simple_expr = self.rep_simple_expr()?;
+        let rep_simple_expr = self.rep_simple_expr(term)?;
         self.debug_print("exiting simple_expression");
-        Ok(())
+        Ok(rep_simple_expr)
     }
-    fn rep_simple_expr(&mut self) -> Result<Option<()>, Box<ParserError>> {
+    fn rep_simple_expr(&mut self, term: Expression) -> Result<Expression, Box<ParserError>> {
         self.debug_print("entering rep_simple_expr");
-        match &self.next_token()?.kind {
-            TokenKind::AddOP(_) => {
-                let term = self.term()?;
-                let x = self.rep_simple_expr()?;
+        let expr = match self.next_token()?.kind.clone() {
+            TokenKind::AddOP(op) => {
+                let term2 = self.term()?;
+                let rep = self.rep_simple_expr(term2)?;
+                Expression::Expr(op.into(), Box::new(term), Box::new(rep))
             }
 
             _ => {
                 self.rewind = true;
                 self.debug_print("exiting rep_simple_expr");
-                return Ok(None);
+                term
             }
-        }
+        };
 
         self.debug_print("exiting rep_simple_expr");
 
-        Ok(Some(()))
+        Ok(expr)
     }
-    fn term(&mut self) -> Result<(), Box<ParserError>> {
+    fn term(&mut self) -> Result<Expression, Box<ParserError>> {
         self.debug_print("entering term");
         let primary = self.primary()?;
-        let rep_term = self.rep_term()?;
+        let rep_term = self.rep_term(primary)?;
         self.debug_print("exiting term");
-        Ok(())
+        Ok(rep_term)
     }
-    fn rep_term(&mut self) -> Result<Option<()>, Box<ParserError>> {
+    fn rep_term(&mut self, primary: Expression) -> Result<Expression, Box<ParserError>> {
         self.debug_print("entering rep_term");
-        match &self.next_token()?.kind {
-            TokenKind::MulOP(_) => {}
+        let rep = match self.next_token()?.kind.clone() {
+            TokenKind::MulOP(op) => {
+                let term2 = self.term()?;
+                let rep = self.rep_simple_expr(term2)?;
+                Expression::Expr(op.into(), Box::new(primary), Box::new(rep))
+            }
 
             _ => {
                 self.rewind = true;
-                self.debug_print("exiting rep_term");
-                return Ok(None);
+                primary
             }
-        }
+        };
 
-        let primary = self.primary()?;
-        self.rep_term()?;
-        self.debug_print("exiting rep_term");
-        Ok(Some(()))
+        Ok(rep)
     }
-    fn primary(&mut self) -> Result<(), Box<ParserError>> {
+    fn primary(&mut self) -> Result<Expression, Box<ParserError>> {
         self.debug_print("entering primary");
 
-        let primary = match &self.next_token()?.kind {
+        let primary = match self.next_token()?.kind.clone() {
             TokenKind::Identifier(id) => {
-                let fcall_option = self.fcall_option()?;
-                Ok(())
+                if let Some(fcall) = self.fcall_option()? {
+                    Expression::FuncCall(id, fcall)
+                } else {
+                    Expression::Identifier(id.clone())
+                }
             }
-            TokenKind::Number { num, .. } => Ok(()),
-            TokenKind::String(s) => Ok(()),
-            TokenKind::CharLiteral(c) => Ok(()),
+            TokenKind::Number { num, .. } => Expression::Number(num),
+            TokenKind::String(s) => Expression::StringLiteral(s.clone()),
+            TokenKind::CharLiteral(c) => Expression::CharLiteral(c),
             TokenKind::Delimiter(Delimiter::LParen) => {
                 let expr = self.expression()?;
                 self.accept(
                     TokenKind::Delimiter(Delimiter::RParen),
                     ParserErrorKind::ExpectedDelimiter(Delimiter::RParen),
                 )?;
-                Ok(())
+                expr
             }
-            TokenKind::Delimiter(Delimiter::Not) => {
-                let primary = self.primary()?;
-                Ok(())
-            }
+            TokenKind::Delimiter(Delimiter::Not) => Expression::Not(Box::new(self.primary()?)),
+
+            TokenKind::AddOP(AddOP::Minus) => Expression::Minus(Box::new(self.primary()?)),
+
             _ => return Err(self.create_error(ParserErrorKind::Generic)),
         };
-        primary
+        self.debug_print("exiting primary");
+
+        Ok(primary)
     }
-    fn fcall_option(&mut self) -> Result<(), Box<ParserError>> {
+    fn fcall_option(&mut self) -> Result<Option<Vec<Expression>>, Box<ParserError>> {
         self.debug_print("entering fcall_option");
-        match &self.next_token()?.kind {
+        let expr = match &self.next_token()?.kind {
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.rewind = true;
-                let function_call = self.function_call()?;
-                Ok(())
+                Some(self.function_call()?)
             }
 
             _ => {
                 self.rewind = true;
-                Ok(())
+                None
             }
-        }
+        };
+        self.debug_print("exiting fcall_option");
+        Ok(expr)
     }
-    fn not(&mut self) -> Result<(), Box<ParserError>> {
-        todo!()
-    }
-    fn function_call(&mut self) -> Result<(), Box<ParserError>> {
+    fn function_call(&mut self) -> Result<Vec<Expression>, Box<ParserError>> {
         self.debug_print("entering function_call");
         self.accept(
             TokenKind::Delimiter(Delimiter::LParen),
@@ -690,44 +685,40 @@ impl<'a, S: Read + Seek> Parser<S> {
             ParserErrorKind::ExpectedDelimiter(Delimiter::RParen),
         )?;
         self.debug_print("exiting function_call");
-        Ok(())
+        Ok(aparam_option.unwrap_or_default())
     }
-    fn aparam_option(&mut self) -> Result<Option<()>, Box<ParserError>> {
+    fn aparam_option(&mut self) -> Result<Option<Vec<Expression>>, Box<ParserError>> {
+        self.rewind = true;
         match &self.next_token()?.kind {
             TokenKind::Identifier(_)
             | TokenKind::Number { .. }
             | TokenKind::String(_)
             | TokenKind::CharLiteral(_)
             | TokenKind::Delimiter(_)
-            | TokenKind::AddOP(_) => {
-                let params = self.actual_parameters()?;
-                Ok(Some(()))
-            }
+            | TokenKind::AddOP(_) => Ok(Some(self.actual_parameters()?)),
 
+            _ => Ok(None),
+        }
+    }
+    fn actual_parameters(&mut self) -> Result<Vec<Expression>, Box<ParserError>> {
+        self.debug_print("entering actual_parameters");
+        let mut parameters = vec![self.expression()?];
+        parameters.append(&mut self.rep_aparam_expr()?.unwrap_or_default());
+        self.debug_print("exiting actual_parameters");
+        Ok(parameters)
+    }
+    fn rep_aparam_expr(&mut self) -> Result<Option<Vec<Expression>>, Box<ParserError>> {
+        match &self.next_token()?.kind {
+            TokenKind::Delimiter(Delimiter::Comma) => {
+                let mut exprs = vec![self.expression()?];
+                exprs.append(&mut self.rep_aparam_expr()?.unwrap_or_default());
+                Ok(Some(exprs))
+            }
             _ => {
                 self.rewind = true;
                 Ok(None)
             }
         }
-    }
-    fn actual_parameters(&mut self) -> Result<(), Box<ParserError>> {
-        self.debug_print("entering actual_parameters");
-        let expression = self.expression()?;
-        let rep_aparam_expr = self.rep_aparam_expr()?;
-        self.debug_print("exiting actual_parameters");
-        Ok(())
-    }
-    fn rep_aparam_expr(&mut self) -> Result<(), Box<ParserError>> {
-        match &self.next_token()?.kind {
-            TokenKind::Delimiter(Delimiter::Comma) => {}
-            _ => {
-                self.rewind = true;
-                return Ok(());
-            }
-        }
-
-        let expression = self.expression()?;
-        Ok(())
     }
 
     fn create_error(&mut self, kind: ParserErrorKind) -> Box<ParserError> {
