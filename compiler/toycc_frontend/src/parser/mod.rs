@@ -232,7 +232,7 @@ impl<'a, S: Read + Seek> Parser<S> {
             }
         };
 
-        let identifier = match &self.next_token()?.kind {
+        match &self.next_token()?.kind {
             TokenKind::Identifier(id) => {
                 declarations.push(VarDef::new(vec![id.clone()], toyc_type))
             }
@@ -263,7 +263,7 @@ impl<'a, S: Read + Seek> Parser<S> {
             }
         };
 
-        let identifier = match &self.next_token()?.kind {
+        match &self.next_token()?.kind {
             TokenKind::Identifier(id) => {
                 declarations.push(VarDef::new(vec![id.clone()], toyc_type))
             }
@@ -508,21 +508,11 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("exiting else_stmt");
         Ok(else_statement)
     }
-    fn return_expr(&mut self) -> Result<Option<Expression>, Box<ParserError>> {
-        self.debug_print("entering return_expr");
-        self.rewind = true;
-        let a = if let Ok(expression) = self.expression() {
-            Some(expression)
-        } else {
-            None
-        };
-        self.debug_print("exiting return_expr");
-        Ok(a)
-    }
+
     fn read_rep(&mut self) -> Result<Vec<String>, Box<ParserError>> {
         let mut repetitions = vec![];
         if self.next_token()?.kind == TokenKind::Delimiter(Delimiter::Comma) {
-            let identifier = match &self.next_token()?.kind {
+            match &self.next_token()?.kind {
                 TokenKind::Identifier(id) => repetitions.push(id.clone()),
                 _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
             };
@@ -640,12 +630,15 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         let primary = match self.next_token()?.kind.clone() {
             TokenKind::Identifier(id) => {
-                let fcall_option = self.fcall_option()?;
-                Expression::Identifier(id.clone())
+                if let Some(fcall) = self.fcall_option()? {
+                    Expression::FuncCall(id, fcall)
+                } else {
+                    Expression::Identifier(id.clone())
+                }
             }
-            TokenKind::Number { num, .. } => Expression::Number(num.clone()),
+            TokenKind::Number { num, .. } => Expression::Number(num),
             TokenKind::String(s) => Expression::StringLiteral(s.clone()),
-            TokenKind::CharLiteral(c) => Expression::CharLiteral(c.clone()),
+            TokenKind::CharLiteral(c) => Expression::CharLiteral(c),
             TokenKind::Delimiter(Delimiter::LParen) => {
                 let expr = self.expression()?;
                 self.accept(
