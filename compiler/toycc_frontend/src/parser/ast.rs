@@ -4,8 +4,8 @@ use std::{arch::x86_64::_CMP_ORD_S, fmt::{Debug, Display, Formatter}};
 const TAB_WIDTH: usize = 2;
 
 #[derive(Debug)]
-pub enum Program {
-    Definition(Vec<Definition>),
+pub struct Program{
+    pub definitions: Vec<Definition>,
 }
 
 #[derive(Debug)]
