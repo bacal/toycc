@@ -1,4 +1,7 @@
 use crate::scanner::token::{AddOP, MulOP, RelOP, Type};
+use std::{arch::x86_64::_CMP_ORD_S, fmt::{Debug, Display, Formatter}};
+
+const TAB_WIDTH: usize = 2;
 
 #[derive(Debug)]
 pub enum Program {
@@ -92,6 +95,47 @@ pub enum Operator {
     GreaterThan,
     Equal,
     NotEqual,
+}
+
+impl Display for Program {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let width = f.width().unwrap_or_default();
+        let variant = match self {
+            Program::Definition(definition) => format!("{:>width$?}", definition, width = width + TAB_WIDTH),
+        };
+        write!(f, "{:>width$}\n{:>width$}\n", "Program(", variant)?;
+        write!(f, "{:>width$}", ")", width = width - 1)
+    }
+}
+
+impl Display for Definition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let width = f.width().unwrap_or_default();
+        let variant = match self {
+            Definition::FuncDef(func_def) => format!("{:>width$}", func_def, width = width + TAB_WIDTH),
+            Definition::VarDef(var_def) => format!("{:>width$}", var_def, width = width + TAB_WIDTH),
+        };
+        write!(f, "{:>width$}\n{:>width$}\n", "Definition(", variant)?;
+        write!(f, "{:>width$}", ")", width = width - 1)
+    }
+}
+
+impl Display for FuncDef {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "FuncDef(\n{:4}\n)", self)
+    }
+}
+
+impl Display for VarDef {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "VarDef(\n{:4}\n)", self)
+    }
+}
+
+impl Display for Statement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!();
+    }
 }
 
 impl From<AddOP> for Operator {
