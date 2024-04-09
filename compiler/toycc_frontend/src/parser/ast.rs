@@ -1,5 +1,5 @@
 use crate::scanner::token::{AddOP, MulOP, RelOP, Type};
-use std::{arch::x86_64::_CMP_ORD_S, fmt::{Debug, Display, Formatter}};
+use std::fmt::{Debug, Display, Formatter};
 
 const TAB_WIDTH: usize = 2;
 
@@ -100,11 +100,10 @@ pub enum Operator {
 impl Display for Program {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let width = f.width().unwrap_or_default();
-        let variant = match self {
-            Program::Definition(definition) => format!("{:>width$?}", definition, width = width + TAB_WIDTH),
-        };
-        write!(f, "{:>width$}\n{:>width$}\n", "Program(", variant)?;
-        write!(f, "{:>width$}", ")", width = width - 1)
+        for definition in &self.definitions {
+            write!(f, "{:>width$}\n{:>width$}\n{:>width$}", "Program(", definition, ")", width = width + TAB_WIDTH)?
+        }
+        Ok(())
     }
 }
 

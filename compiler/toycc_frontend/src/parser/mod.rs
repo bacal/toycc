@@ -75,8 +75,9 @@ impl<'a, S: Read + Seek> Parser<S> {
                 }
             }
         }
-        println!("{:#?}", definitions);
-        Ok(Program{definitions})
+        let program = Program{definitions};
+        println!("{}", program);
+        Ok(program)
     }
 
     fn definition(&mut self) -> Result<Definition, Box<ParserError>> {
