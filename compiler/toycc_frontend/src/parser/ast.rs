@@ -1,8 +1,8 @@
 use crate::scanner::token::{AddOP, MulOP, RelOP, Type};
 
 #[derive(Debug)]
-pub enum Program {
-    Definition(Vec<Definition>),
+pub struct Program{
+    pub definitions: Vec<Definition>,
 }
 
 #[derive(Debug)]
