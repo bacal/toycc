@@ -1,4 +1,4 @@
-mod ast;
+pub mod ast;
 pub mod error;
 
 use crate::parser::ast::*;
