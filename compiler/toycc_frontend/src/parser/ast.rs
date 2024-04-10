@@ -16,22 +16,22 @@ pub enum Definition {
 
 #[derive(Debug)]
 pub struct FuncDef {
-    identifier: String,
-    toyc_type: String,
-    var_def: Vec<VarDef>,
-    statement: Statement,
+    pub identifier: String,
+    pub toyc_type: Type,
+    pub var_def: Vec<VarDef>,
+    pub statement: Statement,
 }
 
 #[derive(Debug)]
 pub struct VarDef {
-    identifiers: Vec<String>,
-    toyc_type: Type,
+    pub identifiers: Vec<String>,
+    pub toyc_type: Type,
 }
 
 impl FuncDef {
     pub fn new(
         identifier: String,
-        toyc_type: String,
+        toyc_type: Type,
         var_def: Vec<VarDef>,
         statement: Statement,
     ) -> Self {

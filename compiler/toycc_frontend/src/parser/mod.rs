@@ -76,7 +76,7 @@ impl<'a, S: Read + Seek> Parser<S> {
             }
         }
         let program = Program{definitions};
-        println!("{}", program);
+        // println!("{}", program);
         Ok(program)
     }
 
@@ -103,7 +103,7 @@ impl<'a, S: Read + Seek> Parser<S> {
                 let (vardefs, statement) = self.func_def()?;
                 Definition::FuncDef(FuncDef::new(
                     identifier,
-                    tc_type.to_string(),
+                    tc_type,
                     vardefs,
                     statement,
                 ))

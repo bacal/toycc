@@ -1,7 +1,7 @@
 use toycc_report::{Diagnostic, Report, ReportLevel};
 
 pub enum BackendError{
-    SemanticError,
+    SemanticError(SemanticError),
     CodeGenerationError,
 }
 
@@ -24,12 +24,14 @@ pub enum SemanticErrorKind{
     IncompatibleTypes,
     InvalidReturn,
     DivisionByZero,
+    MissingMain,
 }
 
 impl Diagnostic for SemanticError{
     fn info(&self) -> String {
         match &self.kind{
             SemanticErrorKind::UndeclaredIdentifier(id) => format!("undeclared identifier '\'{id}\'"),
+            SemanticErrorKind::MissingMain => "missing main function".to_owned(),
             _ => Default::default(),
         }
     }

@@ -1,16 +1,16 @@
 use std::collections::HashMap;
+use toycc_frontend::Type;
 use crate::error::{SemanticError, SemanticErrorKind};
 
 /// Symbol names in table are mangled to avoid collisions
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SymbolTable<'a>{
     table: HashMap<&'a str, Symbol>,
-    scope: Vec<String>,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Symbol{
-    Variable,
-    Label,
+    Variable(Type),
+    Function(Type),
     Offset,
 }
 

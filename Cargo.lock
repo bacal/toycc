@@ -92,6 +92,7 @@ name = "toycc_backend_jvm"
 version = "0.1.0"
 dependencies = [
  "colored",
+ "itertools",
  "pkg-config",
  "toycc_frontend",
  "toycc_report",
