@@ -1,7 +1,20 @@
 use itertools::Itertools;
-use toycc_frontend::ast::{Definition, FuncDef, Program, Statement, VarDef};
+use toycc_frontend::ast::{Definition, Expression, FuncDef, Operator, Program, Statement, VarDef};
 use crate::error::{SemanticError, SemanticErrorKind};
 use crate::symbol_table::{Symbol, SymbolTable};
+
+
+const PROGRAM_HEADER : &str =
+r#"
+.class public ToyCProgram
+.super java/lang/Object
+
+.method public <init> ()V
+    aload_0
+    invokespecial java/lang/Object/<init>()V
+    return
+.end_method
+"#;
 
 #[derive(Default)]
 pub struct SemanticAnalyzer<'a> {
@@ -15,7 +28,8 @@ impl<'a> SemanticAnalyzer<'a>{
         }
     }
     pub fn analyze_program(&mut self, program: &'a Program) -> Result<Vec<String>, Box<SemanticError>>{
-        let x: Vec<_> = program.definitions
+        let mut jasmin_program = PROGRAM_HEADER.to_string();
+        let mut x: Vec<_> = program.definitions
             .iter()
             .map(|def| self.analyze_definition(def))
             .fold_ok(vec![], |mut acc, mut e| { acc.append(&mut e); acc })?;
@@ -23,8 +37,8 @@ impl<'a> SemanticAnalyzer<'a>{
         // if self.symbol_table[0].find("main").is_none(){
         //     return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingMain)));
         // }
-        println!("{:?}",x);
-
+        jasmin_program += x.join("\t\n").as_str();
+        println!("{}",jasmin_program);
 
         Ok(x)
     }
@@ -50,6 +64,7 @@ impl<'a> SemanticAnalyzer<'a>{
         self.analyze_statement(&func_def.statement)?;
 
         println!("{:#?}", self.symbol_table);
+        self.pop_scope();
         Ok(())
     }
     fn analyze_var_def(&mut self, var_def: &'a VarDef) -> Result<(), Box<SemanticError>>{
@@ -69,7 +84,15 @@ impl<'a> SemanticAnalyzer<'a>{
 
     fn analyze_statement(&mut self, statement: &'a Statement) -> Result<(), Box<SemanticError>>{
         match statement{
-            Statement::Expression(expr) => {}
+            Statement::Expression(expr) => {
+                match expr{
+                    Expression::FuncCall(name, arguments) => {},
+                    Expression::Expr(op, expr, expr2) => {
+
+                    },
+                    _ => {}
+                };
+            }
             Statement::Break => {}
             Statement::BlockState(var_defs, statements) => {
                 for var in var_defs{
@@ -79,9 +102,13 @@ impl<'a> SemanticAnalyzer<'a>{
                     self.analyze_statement(statement)?;
                 }
             }
-            Statement::IfState(expr, statement, other_statements) => {
+            Statement::IfState(expr, statement, other_statement) => {
+                match expr{
+                    Expression::Expr(op, lhs, rhs) => {},
+                    _ => {},
+                }
                 self.analyze_statement(statement)?;
-                for statement in other_statements{
+                if let Some(statement) = other_statement.as_ref(){
                     self.analyze_statement(statement)?;
                 }
             }
@@ -94,6 +121,55 @@ impl<'a> SemanticAnalyzer<'a>{
         }
         Ok(())
     }
+
+    fn analyze_expression(&mut self, expression: &'a Expression) -> Result<(), Box<SemanticError>>{
+        match expression{
+            Expression::Number(num) => {}
+            Expression::Identifier(id) => {}
+            Expression::CharLiteral(c) => {}
+            Expression::StringLiteral(s) => {}
+            Expression::FuncCall(name, exprs) => {
+                for expr in exprs{
+                    let x = "push"; // Push all onto stack
+                    let e = self.analyze_expression(expr);
+                }
+                let inst = format!("invokestatic {name}");
+            }
+            Expression::Expr(op, expra, exprb) => {
+                let expra = self.analyze_expression(expra);
+                let exprb = self.analyze_expression(exprb);
+                let op = match op{
+                    Operator::Assign => "iadd",
+                    Operator::Plus => "iadd",
+                    Operator::Minus => "isub",
+                    Operator::Multiply => "imul",
+                    Operator::Divide => "idiv",
+                    Operator::Modulo => "irem",
+                    Operator::Or => "ior",
+                    Operator::And => "iand",
+                    Operator::LessEqual => "ifle",
+                    Operator::LessThan => "iflt",
+                    Operator::GreaterEqual => "ifge",
+                    Operator::GreaterThan => "ifgt",
+                    Operator::Equal => "ifeq",
+                    Operator::NotEqual => "ifne",
+                };
+
+            }
+            Expression::Not(expr) => {
+                let expr = self.analyze_expression(expr)?;
+                let inst = ""; //not operation
+            }
+            Expression::Minus(expr) => {
+                let expr = self.analyze_expression(expr)?;
+                let inst = "inot";
+            }
+        }
+
+        Ok(())
+    }
+
+
 
     fn pop_scope(&mut self){
         self.symbol_table.pop();
