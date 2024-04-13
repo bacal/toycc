@@ -125,10 +125,11 @@ impl<'a> SemanticAnalyzer<'a>{
     fn analyze_expression(&mut self, expression: &'a Expression) -> Result<(), Box<SemanticError>>{
         match expression{
             Expression::Number(num) => {
-
+                format!("ldc {num}");
             }
             Expression::Identifier(id) => {
-
+                ///TODO: Modify the symbol table to contain the local number for id
+                format!("iload_{}",id);
             }
             Expression::CharLiteral(c) => {
                 if let Some(c) = c{
