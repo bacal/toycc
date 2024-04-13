@@ -124,10 +124,20 @@ impl<'a> SemanticAnalyzer<'a>{
 
     fn analyze_expression(&mut self, expression: &'a Expression) -> Result<(), Box<SemanticError>>{
         match expression{
-            Expression::Number(num) => {}
-            Expression::Identifier(id) => {}
-            Expression::CharLiteral(c) => {}
-            Expression::StringLiteral(s) => {}
+            Expression::Number(num) => {
+
+            }
+            Expression::Identifier(id) => {
+
+            }
+            Expression::CharLiteral(c) => {
+                if let Some(c) = c{
+                   format!("bipush {}", *c as u32);
+                }
+            }
+            Expression::StringLiteral(s) => {
+                let res = format!("ldc {s}");
+            }
             Expression::FuncCall(name, exprs) => {
                 for expr in exprs{
                     let x = "push"; // Push all onto stack
@@ -158,7 +168,8 @@ impl<'a> SemanticAnalyzer<'a>{
             }
             Expression::Not(expr) => {
                 let expr = self.analyze_expression(expr)?;
-                let inst = ""; //not operation
+                let inst1 = "iconst_m1";
+                let inst = "ixor"; //not operation
             }
             Expression::Minus(expr) => {
                 let expr = self.analyze_expression(expr)?;
