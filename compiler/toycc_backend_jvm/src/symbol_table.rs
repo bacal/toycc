@@ -10,9 +10,29 @@ pub struct SymbolTable<'a>{
 #[derive(Debug, Clone)]
 pub enum Symbol{
     Variable(Type),
-    Function(Type),
+    Function(Function),
     Offset,
 }
+
+#[derive(Debug, Clone)]
+pub struct Function{
+    pub name: String,
+    pub arguments: Vec<String>,
+    pub body: Vec<String>,
+    pub return_type: Type,
+}
+
+impl Function{
+    pub fn new(name: String, arguments: Vec<String>, body: Vec<String>, return_type: Type) -> Self{
+        Self{
+            name,
+            arguments,
+            body,
+            return_type,
+        }
+    }
+}
+
 
 impl<'a> SymbolTable<'a>{
     pub fn insert(&mut self, name: &'a str, symbol: Symbol) -> Result<&Symbol, SemanticError>{

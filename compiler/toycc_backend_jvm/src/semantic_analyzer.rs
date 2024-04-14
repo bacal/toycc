@@ -1,7 +1,8 @@
 use itertools::Itertools;
 use toycc_frontend::ast::{Definition, Expression, FuncDef, Operator, Program, Statement, VarDef};
+use toycc_frontend::Type;
 use crate::error::{SemanticError, SemanticErrorKind};
-use crate::symbol_table::{Symbol, SymbolTable};
+use crate::symbol_table::{Function, Symbol, SymbolTable};
 
 
 const PROGRAM_HEADER : &str =
@@ -14,6 +15,7 @@ r#"
     invokespecial java/lang/Object/<init>()V
     return
 .end_method
+
 "#;
 
 #[derive(Default)]
@@ -47,52 +49,54 @@ impl<'a> SemanticAnalyzer<'a>{
         match definition{
             Definition::FuncDef(func_def) => self.analyze_func_def(func_def),
             Definition::VarDef(var_def) => self.analyze_var_def(var_def),
-        }?;
-        Ok(vec![])
-    }
-
-    fn analyze_func_def(&mut self, func_def: &'a FuncDef) -> Result<(), Box<SemanticError>>{
-        self.push_scope();
-        for var in &func_def.var_def{
-            self.analyze_var_def(&var)?;
         }
-        self.symbol_table.iter_mut()
-            .next_back()
-            .unwrap()
-            .insert(func_def.identifier.as_str(), Symbol::Function(func_def.toyc_type.clone()))?;
-
-        self.analyze_statement(&func_def.statement)?;
-
-        println!("{:#?}", self.symbol_table);
-        self.pop_scope();
-        Ok(())
     }
-    fn analyze_var_def(&mut self, var_def: &'a VarDef) -> Result<(), Box<SemanticError>>{
-        for id in &var_def.identifiers{
+
+    fn analyze_func_def(&mut self, func_def: &'a FuncDef) -> Result<Vec<String>, Box<SemanticError>>{
+        let mut function = vec![];
+        let args: Vec<_> = func_def.var_def.iter()
+            .map(|arg| match arg.toyc_type{
+                Type::Int => "I".to_string(),
+                Type::Char => "C".to_string(),
+            })
+            .collect();
+        self.push_scope();
+        let body = self.analyze_statement(&func_def.statement)?;
+        self.pop_scope();
+        {
+            let function = Function::new(func_def.identifier.clone(),
+                                         args.clone(),
+                                         body.clone(),
+                                         func_def.toyc_type.clone());
+
             self.symbol_table.iter_mut()
                 .next_back()
                 .unwrap()
-                .insert(id.as_str(),Symbol::Variable(var_def.toyc_type.clone()))?;
+                .insert(func_def.identifier.as_str(), Symbol::Function(function))?;
+        }
+        println!("{:#?}", self.symbol_table);
+        function.push(format!(".method public static {}({}){}\n.end_method",
+                              func_def.identifier,
+                              args.join(""),
+                              body.join("\n")));
+        Ok(function)
+    }
+    fn analyze_var_def(&mut self, var_def: &'a VarDef) -> Result<Vec<String>, Box<SemanticError>>{
+
+        for id in &var_def.identifiers{
+           self.insert_symbol(id.as_str(), Symbol::Variable(var_def.toyc_type.clone()))?;
         }
 
-        Ok(())
+        Ok(vec![])
     }
 
     fn push_scope(&mut self){
         self.symbol_table.push(self.symbol_table.iter().next_back().unwrap().clone())
     }
 
-    fn analyze_statement(&mut self, statement: &'a Statement) -> Result<(), Box<SemanticError>>{
+    fn analyze_statement(&mut self, statement: &'a Statement) -> Result<Vec<String>, Box<SemanticError>>{
         match statement{
-            Statement::Expression(expr) => {
-                match expr{
-                    Expression::FuncCall(name, arguments) => {},
-                    Expression::Expr(op, expr, expr2) => {
-
-                    },
-                    _ => {}
-                };
-            }
+            Statement::Expression(expr) => { return self.analyze_expression(expr); },
             Statement::Break => {}
             Statement::BlockState(var_defs, statements) => {
                 for var in var_defs{
@@ -119,10 +123,10 @@ impl<'a> SemanticAnalyzer<'a>{
             Statement::WriteState(_, _) => {}
             Statement::NewLineState => {}
         }
-        Ok(())
+        Ok(vec![])
     }
 
-    fn analyze_expression(&mut self, expression: &'a Expression) -> Result<(), Box<SemanticError>>{
+    fn analyze_expression(&mut self, expression: &'a Expression) -> Result<Vec<String>, Box<SemanticError>>{
         match expression{
             Expression::Number(num) => {
                 format!("ldc {num}");
@@ -139,11 +143,23 @@ impl<'a> SemanticAnalyzer<'a>{
             Expression::StringLiteral(s) => {
                 let res = format!("ldc {s}");
             }
-            Expression::FuncCall(name, exprs) => {
-                for expr in exprs{
-                    let x = "push"; // Push all onto stack
-                    let e = self.analyze_expression(expr);
+
+            Expression::FuncCall(name, arguments) => {
+                let mut args = arguments.iter()
+                    .map(|a| self.analyze_expression(a))
+                    .collect::<Result<Vec<_>, Box<SemanticError>>>()?
+                    .iter()
+                    .flatten()
+                    .map(Clone::clone)
+                    .collect::<Vec<_>>();
+                if let Symbol::Function(func) = self.get_symbol(name)?{
+                    let call = format!("invokestatic ToyCProgram/{name}({})",func.arguments.clone().join(""));
+                    args.push(call);
                 }
+                else{
+                    return Err(Box::new(SemanticError::new(SemanticErrorKind::UndeclaredFunction(name.clone()))))
+                }
+
                 let inst = format!("invokestatic {name}");
             }
             Expression::Expr(op, expra, exprb) => {
@@ -178,15 +194,23 @@ impl<'a> SemanticAnalyzer<'a>{
             }
         }
 
-        Ok(())
+        Ok(vec![])
     }
-
-
 
     fn pop_scope(&mut self){
         self.symbol_table.pop();
     }
 
+    fn get_symbol(&mut self, name: &'a str) -> Result<&Symbol, Box<SemanticError>>{
+        Ok(self.symbol_table.iter_mut().next_back().unwrap().find(name).unwrap())
+    }
+    fn insert_symbol(&mut self, name: &'a str, symbol: Symbol) -> Result<(), Box<SemanticError>> {
+        self.symbol_table.iter_mut()
+            .next_back()
+            .unwrap()
+            .insert(name, symbol)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

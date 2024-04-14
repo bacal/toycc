@@ -20,6 +20,7 @@ impl SemanticError{
 
 pub enum SemanticErrorKind{
     UndeclaredIdentifier(String),
+    UndeclaredFunction(String),
     MultipleBindings,
     IncompatibleTypes,
     InvalidReturn,
