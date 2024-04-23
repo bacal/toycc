@@ -19,15 +19,13 @@ r#"
 pub struct SemanticAnalyzer<'a> {
     program_name: &'a str,
     symbol_table: Vec<SymbolTable<'a>>,
-    if_count: usize,
-    while_count: usize,
+    conditional_count: usize,
 }
 
 impl<'a> SemanticAnalyzer<'a>{
     pub fn new() -> Self{
         Self{
-            if_count: 0,
-            while_count: 0,
+            conditional_count: 0,
             program_name: "",
             symbol_table: vec![SymbolTable::default();1]
         }
@@ -136,39 +134,39 @@ impl<'a> SemanticAnalyzer<'a>{
                 );
             }
             Statement::IfState(expr, statement, else_stmt) => {
-                self.if_count+=1;
-                let then_label = format!(".CT{}",self.if_count);
-                let end_label = format!(".CE{}",self.if_count);
+                self.conditional_count+=1;
+                let then_label = format!(".CT{}",self.conditional_count);
+                let else_label = format!(".CL{}",self.conditional_count);
+                let end_label = format!(".CE{}",self.conditional_count);
                 match expr{
-                    Expression::Expr(op, lhs, rhs) => {
-                        instructions.append(&mut self.analyze_expression(lhs)?);
-                        instructions.append(&mut self.analyze_expression(rhs)?);
-                        let op = match op {
-                            Operator::LessEqual => "ifle",
-                            Operator::LessThan => "iflt",
-                            Operator::GreaterEqual => "ifge",
-                            Operator::GreaterThan => "ifgt",
-                            Operator::Equal => "ifeq",
-                            Operator::NotEqual => "ifne",
-                            _ => todo!("Add Error Handling"),
-                        };
-                        instructions.push(format!("{op} {then_label}"));
+                    Expression::Expr(..) => {
+                        instructions.append(&mut self.analyze_expression(expr)?);
+                        match else_stmt.as_ref(){
+                            Some(_) => instructions.push(format!("jump {else_label}")),
+                            None => instructions.push(format!("jump {end_label}")),
+                        }
+                        instructions.push(format!("{then_label}:"))
                     },
                     _ => {
                         instructions.append(&mut self.analyze_expression(expr)?);
                         instructions.push("ldc 1".to_string());
                         instructions.push(format!("ifeq {then_label}"));
-
+                        match else_stmt.as_ref(){
+                            Some(_) => instructions.push(format!("jump {else_label}")),
+                            None => instructions.push(format!("jump {end_label}")),
+                        }
+                        instructions.push(format!("{then_label}:"));
                     },
                 };
-                instructions.push(format!("jump {end_label}"));
-                instructions.push(format!("{then_label}:"));
                 instructions.append(&mut self.analyze_statement(statement)?);
 
-                instructions.push(format!("{end_label}:"));
                 if let Some(else_statement) = else_stmt.as_ref(){
+                    instructions.push(format!("jump {end_label}"));
+                    instructions.push(format!("{else_label}:"));
                     instructions.append(&mut self.analyze_statement(else_statement)?);
                 }
+                instructions.push(format!("{end_label}:"));
+
             }
             Statement::NullState => instructions.push("nop".to_string()),
             Statement::ReturnState(arg) => {
@@ -182,7 +180,34 @@ impl<'a> SemanticAnalyzer<'a>{
 
             }
             Statement::WhileState(expr, statement) => {
+                self.conditional_count+=1;
+                let then_label = format!(".CT{}",self.conditional_count);
+                let end_label = format!(".CE{}",self.conditional_count);
 
+                instructions.append(&mut self.analyze_expression(expr)?);
+
+                match expr{
+                    Expression::Expr(..) => {
+                        instructions.push(format!("jump {end_label}"));
+                    },
+                    _ => {
+                        instructions.push("ldc 1".to_string());
+                        instructions.push(format!("ifeq {end_label}"));
+                    },
+                }
+                instructions.push(format!("{then_label}:"));
+                instructions.append(&mut self.analyze_statement(statement)?);
+
+                match expr{
+                    Expression::Expr(..) => {
+                        instructions.append(&mut self.analyze_expression(expr)?)
+                    },
+                    _ => {
+                        instructions.push("ldc 1".to_string());
+                        instructions.push(format!("ifne {then_label}"));
+                    },
+                }
+                instructions.push(format!("{end_label}:"));
             }
             Statement::ReadState(_, _) => {}
             Statement::WriteState(_, _) => {}
@@ -231,34 +256,51 @@ impl<'a> SemanticAnalyzer<'a>{
                 }
             }
             Expression::Expr(op, expra, exprb) => {
+                let then_label = format!(".CT{}",self.conditional_count);
+
                 instructions.append(&mut self.analyze_expression(exprb)?);
-                if *op == Operator::Assign{
-                    match expra.as_ref(){
-                        Expression::Identifier(id) => {
-                            match self.get_symbol(id)?{
-                                Symbol::Variable(_, num) => {
-                                    instructions.push(format!("istore {num}"));
-                                }
-                                _ => return Err(Box::new(SemanticError::new(SemanticErrorKind::UndeclaredIdentifier(id.clone())))),
-                            }
-                        }
-                        _ => return Err(Box::new(SemanticError::new(SemanticErrorKind::ExpectedIdentifier))),
-                    }
-                }
-                else {
+                if *op!=Operator::Assign{
                     instructions.append(&mut self.analyze_expression(expra)?);
-                    let op = match op{
-                        Operator::Plus => "iadd".to_owned(),
-                        Operator::Minus => "isub".to_owned(),
-                        Operator::Multiply => "imul".to_owned(),
-                        Operator::Divide => "idiv".to_owned(),
-                        Operator::Modulo => "irem".to_owned(),
-                        Operator::Or => "ior".to_owned(),
-                        Operator::And => "iand".to_owned(),
-                        _ => "".to_owned(),
-                    };
-                    instructions.push(op);
                 }
+                match op{
+                    Operator::Plus => instructions.push("iadd".to_owned()),
+                    Operator::Minus => instructions.push("isub".to_owned()),
+                    Operator::Multiply => instructions.push("imul".to_owned()),
+                    Operator::Divide => instructions.push("idiv".to_owned()),
+                    Operator::Modulo => instructions.push("irem".to_owned()),
+                    Operator::Or => instructions.push("ior".to_owned()),
+                    Operator::And => instructions.push("iand".to_owned()),
+                    Operator::LessEqual =>
+                        instructions.push(format!("ifle {then_label}")),
+                    Operator::LessThan => {
+                        instructions.push(format!("iflt {then_label}"));
+                    },
+                    Operator::GreaterEqual =>
+                        instructions.push(format!("ifge {then_label}")),
+                    Operator::GreaterThan =>
+                        instructions.push(format!("ifgt {then_label}")),
+                    Operator::Equal =>
+                        instructions.push(format!("ifeq {then_label}")),
+                    Operator::NotEqual =>
+                        instructions.push(format!("ifne {then_label}")),
+                    Operator::Assign => {
+                        match expra.as_ref(){
+                            Expression::Identifier(id) => {
+                                match self.get_symbol(id)?{
+                                    Symbol::Variable(_, num) => {
+                                        instructions.push(format!("istore {num}"));
+                                    }
+                                    _ => return Err(Box::new(SemanticError::new(SemanticErrorKind::UndeclaredIdentifier(id.clone())))),
+                                }
+                            }
+                            _ => return Err(Box::new(SemanticError::new(SemanticErrorKind::ExpectedIdentifier))),
+                        }
+                    }
+                };
+
+
+
+
 
             }
             Expression::Not(expr) => {
