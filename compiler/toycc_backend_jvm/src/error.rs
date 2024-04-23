@@ -1,4 +1,4 @@
-use toycc_report::{Diagnostic, Report, ReportLevel};
+use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
 
 pub enum BackendError{
     SemanticError(SemanticError),
@@ -6,7 +6,7 @@ pub enum BackendError{
 }
 
 
-#[derive(Report)]
+#[derive(Report, Debug)]
 pub struct SemanticError{
     kind: SemanticErrorKind,
 }
@@ -18,14 +18,17 @@ impl SemanticError{
     }
 }
 
+#[derive(Debug)]
 pub enum SemanticErrorKind{
     UndeclaredIdentifier(String),
     UndeclaredFunction(String),
-    MultipleBindings,
+    MultipleBindings(String),
     IncompatibleTypes,
     InvalidReturn,
     DivisionByZero,
     MissingMain,
+    ExpectedFunction,
+    ExpectedIdentifier,
 }
 
 impl Diagnostic for SemanticError{
@@ -33,19 +36,30 @@ impl Diagnostic for SemanticError{
         match &self.kind{
             SemanticErrorKind::UndeclaredIdentifier(id) => format!("undeclared identifier '\'{id}\'"),
             SemanticErrorKind::MissingMain => "missing main function".to_owned(),
-            _ => Default::default(),
+            SemanticErrorKind::UndeclaredFunction(ud) => format!("undeclared function {ud}"),
+            SemanticErrorKind::MultipleBindings(id) => format!("redeclaration of identifier {id}"),
+            SemanticErrorKind::IncompatibleTypes => "incompatible types".to_owned(),
+            SemanticErrorKind::InvalidReturn => "invalid return".to_owned(),
+            SemanticErrorKind::DivisionByZero => "illegal division by 0".to_owned(),
+            SemanticErrorKind::ExpectedFunction=> "expected function declaration".to_owned(),
+            SemanticErrorKind::ExpectedIdentifier => "expected identifier".to_owned(),
         }
     }
 
     fn level(&self) -> ReportLevel {
-        todo!()
+        ReportLevel::Error(ErrorKind::ParsingError {
+            file_name: Default::default(),
+            pos: Default::default(),
+            len: Default::default(),
+            source: Default::default(),
+        })
     }
 
     fn help(&self) -> Option<String> {
-        todo!()
+        None
     }
 
     fn others(&self) -> Option<&dyn Report> {
-        todo!()
+        None
     }
 }

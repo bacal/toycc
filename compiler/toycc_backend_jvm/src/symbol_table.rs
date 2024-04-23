@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use toycc_frontend::Type;
 use crate::error::{SemanticError, SemanticErrorKind};
 
@@ -9,7 +10,7 @@ pub struct SymbolTable<'a>{
 }
 #[derive(Debug, Clone)]
 pub enum Symbol{
-    Variable(Type),
+    Variable(Type, usize),
     Function(Function),
     Offset,
 }
@@ -35,9 +36,9 @@ impl Function{
 
 
 impl<'a> SymbolTable<'a>{
-    pub fn insert(&mut self, name: &'a str, symbol: Symbol) -> Result<&Symbol, SemanticError>{
+    pub fn insert(&mut self, name: &'a str, symbol: Symbol) -> Result<&Symbol, Box<SemanticError>>{
         match self.table.insert(name,symbol){
-            Some(_) => Err(self.create_error(SemanticErrorKind::MultipleBindings)),
+            Some(_) => Err(Box::new(self.create_error(SemanticErrorKind::MultipleBindings(name.to_string())))),
             None => Ok(self.table.get(name).unwrap())
         }
     }
@@ -45,6 +46,9 @@ impl<'a> SymbolTable<'a>{
         self.table.get(name)
     }
 
+    pub fn len(&mut self) -> usize{
+        self.table.len()
+    }
     fn create_error(&mut self, kind:  SemanticErrorKind) -> SemanticError{
         SemanticError::new(kind)
     }

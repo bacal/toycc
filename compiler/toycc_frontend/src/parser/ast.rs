@@ -79,7 +79,7 @@ pub enum Expression {
     Minus(Box<Expression>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Operator {
     Assign,
     Plus,
