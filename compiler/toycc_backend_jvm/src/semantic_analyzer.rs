@@ -213,31 +213,86 @@ impl<'a> SemanticAnalyzer<'a>{
                 }
                 instructions.push(format!("{end_label}:"));
             }
-            Statement::ReadState(_, _) => {}
+            Statement::ReadState(name, others) => {
+                match self.insert_symbol("JAVA_SCANNER", Symbol::Variable(Type::Int, 900)){
+                    Ok(_) =>{
+                        instructions.push("new java/util/Scanner".to_owned());
+                        instructions.push("dup".to_owned());
+                        instructions.push("getstatic java/lang/System/in Ljava/io/InputStream;".to_owned());
+                        instructions.push("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V".to_owned());
+                        instructions.push("astore 900".to_owned());
+                    }
+                    Err(_) => {}
+                }
+                instructions.push("aload 900".to_owned());
+
+                match self.get_symbol(name)?{
+                    Symbol::Variable(toyc_type, num) => {
+                        match toyc_type{
+                            Type::Int => {
+                                instructions.push("invokevirtual java/util/Scanner/nextInt()I".to_string())
+                            },
+                            Type::Char => instructions.push("invokevirtual java/util/Scanner/nextChar()C".to_string()),
+                        }
+                        instructions.push(format!("istore {num}"))
+                    },
+                    _ => todo!("Add Error Handling")
+                }
+
+                if let Some(others) = others{
+                    for name in others{
+                        instructions.push("aload 900".to_owned());
+                        match self.get_symbol(name)?{
+                            Symbol::Variable(toyc_type, num) => {
+                                match toyc_type{
+                                    Type::Int => {
+                                        instructions.push("invokevirtual java/util/Scanner/nextInt()I".to_string())
+                                    },
+                                    Type::Char => instructions.push("invokevirtual java/util/Scanner/nextChar()C".to_string()),
+                                }
+                                instructions.push(format!("istore {num}"))
+                            },
+                            _ => todo!("Add Error Handling")
+                        }
+                    }
+                }
+            }
             Statement::WriteState(expr, others) => {
                 let arg_type = self.get_return_type(expr)?;
-                instructions.append(&mut self.analyze_expression(expr)?);
                 match arg_type{
-                    "S" => {},
-                    _ => instructions.push(format!("invokestatic java/lang/String/valueOf({arg_type})Ljava/lang/String;")),
+                    "S" => {
+                        instructions.append(&mut self.analyze_expression(expr)?);
+                        instructions.push("astore 0".to_string());
+                        instructions.push("getstatic java/lang/System/out Ljava/io/PrintStream;".to_string());
+                        instructions.push("aload 0".to_string());
+                        instructions.push("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V".to_string())
+                    },
+                    format => {
+                        instructions.push("getstatic java/lang/System/out Ljava/io/PrintStream;".to_string());
+                        instructions.append(&mut self.analyze_expression(expr)?);
+                        instructions.push(format!("invokevirtual java/io/PrintStream/print({format})V"))
+                    },
                 }
-                instructions.push("astore 0".to_string());
-                instructions.push("getstatic java/lang/System/out Ljava/io/PrintStream;".to_string());
-                instructions.push("aload 0".to_string());
-                instructions.push("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V".to_string());
                 if let Some(others) = others{
                     for expr in others{
                         let arg_type = self.get_return_type(expr)?;
                         instructions.append(&mut self.analyze_expression(expr)?);
                         match arg_type{
-                            "S" => {},
-                            _ => instructions.push(format!("invokestatic java/lang/String/valueOf({arg_type})Ljava/lang/String;")),
+                            "S" => {
+                                instructions.push("astore 0".to_string());
+                                instructions.push("getstatic java/lang/System/out Ljava/io/PrintStream;".to_string());
+                                instructions.push("aload 0".to_string());
+                                instructions.push("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V".to_string())
+                            },
+                            format => {
+                                instructions.push("getstatic java/lang/System/out Ljava/io/PrintStream;".to_string());
+                                instructions.append(&mut self.analyze_expression(expr)?);
+                                instructions.push(format!("invokevirtual java/io/PrintStream/print({format})V"))
+                            },
                         }
-                        instructions.push("astore 0".to_string());instructions.push("astore 0".to_string());
-                        instructions.push("getstatic java/lang/System/out Ljava/io/PrintStream;".to_string());
-                        instructions.push("aload 0".to_string());
-                        instructions.push("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V".to_string());
                     }
+                    instructions.push("getstatic java/lang/System/out Ljava/io/PrintStream;".to_string());
+                    instructions.push("invokevirtual java/io/PrintStream/println()V".to_string())
                 }
 
             }
