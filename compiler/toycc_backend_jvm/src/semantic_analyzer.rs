@@ -7,11 +7,11 @@ use crate::symbol_table::{Function, Symbol, SymbolTable};
 
 const CLASS_INIT_HEADER : &str =
 r#"
-.method public <init> ()V
+.method <init>()V
     aload_0
     invokespecial java/lang/Object/<init>()V
     return
-.end_method
+.end method
 
 "#;
 
@@ -55,7 +55,7 @@ impl<'a> SemanticAnalyzer<'a>{
 
     fn analyze_func_def(&mut self, func_def: &'a FuncDef) -> Result<Vec<String>, Box<SemanticError>>{
         let mut instructions = vec![];
-        let return_type = match func_def.toyc_type{
+        let mut return_type = match func_def.toyc_type{
             Type::Int => "I",
             Type::Char => "C",
         };
@@ -66,7 +66,7 @@ impl<'a> SemanticAnalyzer<'a>{
             0
         })?;
 
-        let args: Vec<_> = func_def.var_def.iter()
+        let mut args: Vec<_> = func_def.var_def.iter()
             .map(|arg|{
                 match arg.toyc_type{
                     Type::Int => "I".to_string(),
@@ -74,7 +74,10 @@ impl<'a> SemanticAnalyzer<'a>{
                 }
             })
             .collect();
-
+        if func_def.identifier== "main"{
+            args = vec!["[Ljava/lang/String;".to_owned()];
+            return_type = "V";
+        }
         let mut body = self.analyze_statement(&func_def.statement)?;
         println!("{:?}",&body);
         self.pop_scope();
@@ -83,13 +86,14 @@ impl<'a> SemanticAnalyzer<'a>{
                                      body.clone(),
                                      func_def.toyc_type.clone());
         println!("{:?}",&function);
+
         self.insert_symbol(func_def.identifier.as_str(), Symbol::Function(function))?;
 
         body.iter_mut()
-            .filter(|f| !f.starts_with("."))
+            .filter(|f| !f.starts_with('.') && !f.contains(':'))
             .for_each(|mut f| f.insert(0,'\t'));
 
-        instructions.push(format!(".method public static {}({}){}\n{}\n.end_method\n",
+        instructions.push(format!(".method public static {}({}){}\n\t.limit stack 1000\n\t.limit locals 1000\n{}\n.end method\n",
                               func_def.identifier,
                               args.join(""),
                               return_type,
@@ -135,15 +139,15 @@ impl<'a> SemanticAnalyzer<'a>{
             }
             Statement::IfState(expr, statement, else_stmt) => {
                 self.conditional_count+=1;
-                let then_label = format!(".CT{}",self.conditional_count);
-                let else_label = format!(".CL{}",self.conditional_count);
-                let end_label = format!(".CE{}",self.conditional_count);
+                let then_label = format!("CT{}",self.conditional_count);
+                let else_label = format!("CL{}",self.conditional_count);
+                let end_label = format!("CE{}",self.conditional_count);
                 match expr{
                     Expression::Expr(..) => {
                         instructions.append(&mut self.analyze_expression(expr)?);
                         match else_stmt.as_ref(){
-                            Some(_) => instructions.push(format!("jump {else_label}")),
-                            None => instructions.push(format!("jump {end_label}")),
+                            Some(_) => instructions.push(format!("goto {else_label}")),
+                            None => instructions.push(format!("goto {end_label}")),
                         }
                         instructions.push(format!("{then_label}:"))
                     },
@@ -152,8 +156,8 @@ impl<'a> SemanticAnalyzer<'a>{
                         instructions.push("ldc 1".to_string());
                         instructions.push(format!("ifeq {then_label}"));
                         match else_stmt.as_ref(){
-                            Some(_) => instructions.push(format!("jump {else_label}")),
-                            None => instructions.push(format!("jump {end_label}")),
+                            Some(_) => instructions.push(format!("goto {else_label}")),
+                            None => instructions.push(format!("goto {end_label}")),
                         }
                         instructions.push(format!("{then_label}:"));
                     },
@@ -161,7 +165,7 @@ impl<'a> SemanticAnalyzer<'a>{
                 instructions.append(&mut self.analyze_statement(statement)?);
 
                 if let Some(else_statement) = else_stmt.as_ref(){
-                    instructions.push(format!("jump {end_label}"));
+                    instructions.push(format!("goto {end_label}"));
                     instructions.push(format!("{else_label}:"));
                     instructions.append(&mut self.analyze_statement(else_statement)?);
                 }
@@ -181,14 +185,14 @@ impl<'a> SemanticAnalyzer<'a>{
             }
             Statement::WhileState(expr, statement) => {
                 self.conditional_count+=1;
-                let then_label = format!(".CT{}",self.conditional_count);
-                let end_label = format!(".CE{}",self.conditional_count);
+                let then_label = format!("CT{}",self.conditional_count);
+                let end_label = format!("CE{}",self.conditional_count);
 
                 instructions.append(&mut self.analyze_expression(expr)?);
 
                 match expr{
                     Expression::Expr(..) => {
-                        instructions.push(format!("jump {end_label}"));
+                        instructions.push(format!("goto {end_label}"));
                     },
                     _ => {
                         instructions.push("ldc 1".to_string());
@@ -210,7 +214,33 @@ impl<'a> SemanticAnalyzer<'a>{
                 instructions.push(format!("{end_label}:"));
             }
             Statement::ReadState(_, _) => {}
-            Statement::WriteState(_, _) => {}
+            Statement::WriteState(expr, others) => {
+                let arg_type = self.get_return_type(expr)?;
+                instructions.append(&mut self.analyze_expression(expr)?);
+                match arg_type{
+                    "S" => {},
+                    _ => instructions.push(format!("invokestatic java/lang/String/valueOf({arg_type})Ljava/lang/String;")),
+                }
+                instructions.push("astore 0".to_string());
+                instructions.push("getstatic java/lang/System/out Ljava/io/PrintStream;".to_string());
+                instructions.push("aload 0".to_string());
+                instructions.push("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V".to_string());
+                if let Some(others) = others{
+                    for expr in others{
+                        let arg_type = self.get_return_type(expr)?;
+                        instructions.append(&mut self.analyze_expression(expr)?);
+                        match arg_type{
+                            "S" => {},
+                            _ => instructions.push(format!("invokestatic java/lang/String/valueOf({arg_type})Ljava/lang/String;")),
+                        }
+                        instructions.push("astore 0".to_string());instructions.push("astore 0".to_string());
+                        instructions.push("getstatic java/lang/System/out Ljava/io/PrintStream;".to_string());
+                        instructions.push("aload 0".to_string());
+                        instructions.push("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V".to_string());
+                    }
+                }
+
+            }
             Statement::NewLineState => {}
         }
         Ok(instructions)
@@ -234,7 +264,7 @@ impl<'a> SemanticAnalyzer<'a>{
                 }
             }
             Expression::StringLiteral(s) => {
-                instructions.push(format!("ldc {s}"));
+                instructions.push(format!("ldc \"{s}\""));
             }
 
             Expression::FuncCall(name, arguments) => {
@@ -256,7 +286,7 @@ impl<'a> SemanticAnalyzer<'a>{
                 }
             }
             Expression::Expr(op, expra, exprb) => {
-                let then_label = format!(".CT{}",self.conditional_count);
+                let then_label = format!("CT{}",self.conditional_count);
 
                 instructions.append(&mut self.analyze_expression(exprb)?);
                 if *op!=Operator::Assign{
@@ -298,10 +328,6 @@ impl<'a> SemanticAnalyzer<'a>{
                     }
                 };
 
-
-
-
-
             }
             Expression::Not(expr) => {
                 let expr = self.analyze_expression(expr)?;
@@ -329,6 +355,35 @@ impl<'a> SemanticAnalyzer<'a>{
             .next_back()
             .unwrap()
             .insert(name, symbol)
+    }
+
+    fn get_return_type(&mut self, expr: &'a Expression) -> Result<&'static str, Box<SemanticError>>{
+        Ok(match expr{
+            Expression::Number(_) => "I",
+            Expression::Identifier(id) => match self.get_symbol(id)?{
+                Symbol::Variable(t_type,_) => match t_type{
+                    Type::Int => "I",
+                    Type::Char => "C",
+                },
+                Symbol::Function(f) => match f.return_type{
+                    Type::Int => "I",
+                    Type::Char => "C",
+                },
+                _ => "V"
+            }
+            Expression::CharLiteral(_) => "C",
+            Expression::StringLiteral(_) => "S",
+            Expression::FuncCall(name, _) => match self.get_symbol(name)?{
+                Symbol::Function(f) => match f.return_type{
+                    Type::Int => "I",
+                    Type::Char => "C",
+                },
+                _ => panic!("error?")
+            }
+            Expression::Expr(_, a, _) => self.get_return_type(a)?,
+            Expression::Not(val) => self.get_return_type(val)?,
+            Expression::Minus(val) => self.get_return_type(val)?
+        })
     }
 }
 
