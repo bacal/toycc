@@ -188,7 +188,12 @@ impl Display for FuncDef {
         writeln!(f, "{:>dindent$}", "),")?;
 
         writeln!(f, "{:>width$}", "Type(", width = indent + "Type(".len())?;
-        writeln!(f, "{:>width$}", self.toyc_type, width = indent + 5)?;
+        writeln!(
+            f,
+            "{:>width$}",
+            self.toyc_type.to_string(),
+            width = indent + 5
+        )?;
         writeln!(f, "{:>dindent$}", ")")?;
 
         for def in &self.var_def {
