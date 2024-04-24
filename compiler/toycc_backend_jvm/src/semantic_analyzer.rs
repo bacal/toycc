@@ -84,7 +84,7 @@ impl<'a> SemanticAnalyzer<'a> {
         func_def: &'a FuncDef,
     ) -> Result<Vec<String>, Box<SemanticError>> {
         let mut instructions = vec![];
-        let mut return_type = match func_def.toyc_type {
+        let return_type = match func_def.toyc_type {
             Type::Int => "I",
             Type::Char => "C",
         };
@@ -94,7 +94,7 @@ impl<'a> SemanticAnalyzer<'a> {
             self.analyze_var_def(var_def)?;
         }
 
-        let mut args: Vec<_> = func_def
+        let args: Vec<_> = func_def
             .var_def
             .iter()
             .map(|arg| match arg.toyc_type {
@@ -126,6 +126,17 @@ impl<'a> SemanticAnalyzer<'a> {
                 match return_type.as_str(){
                     "ireturn" => "I",
                     "return" => "V",
+                    s if s.contains(':') => {
+                        body.push("nop".to_string());
+                        match body.iter().nth_back(2){
+                            None => return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingReturn))),
+                            Some(return_type) => match return_type.as_str(){
+                                "ireturn" => "I",
+                                "return" => "V",
+                                _ => return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingReturn))),
+                            }
+                        }
+                    }
                     _ => return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingReturn)))
                 }
             }
@@ -552,7 +563,7 @@ impl<'a> SemanticAnalyzer<'a> {
         name: &'a str,
         symbol: Symbol,
     ) -> Result<&Symbol, Box<SemanticError>> {
-        *self.scope_symbols.iter_mut().next_back().unwrap() +=1;;
+        *self.scope_symbols.iter_mut().next_back().unwrap() +=1;
         self.symbol_table
             .iter_mut()
             .next_back()
@@ -605,11 +616,10 @@ pub mod test {
         let program = toycc_frontend::Parser::new(
             Cursor::new("int isEven(int n){if ((n % 2) == 0) return 1; else return 0;}int main(){int a; int c; c = 44; a = c; return 0;}"),
             "test.tc",
-            Some(2),
-            false).parse().expect("failed to parse");
+            Some(2)).parse().expect("failed to parse");
         // println!("{:#?}",program);
-        let mut analyzer = SemanticAnalyzer::new();
-        let c = analyzer.analyze_program(&program, "test.tc");
+        let mut analyzer = SemanticAnalyzer::new("test",false);
+        let c = analyzer.analyze_program(&program);
         assert!(c.is_ok());
 
         println!("{}", c.unwrap());

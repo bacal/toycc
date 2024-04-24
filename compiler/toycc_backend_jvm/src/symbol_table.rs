@@ -64,9 +64,6 @@ impl<'a> SymbolTable<'a> {
         self.table.get(name)
     }
 
-    pub fn len(&mut self) -> usize {
-        self.table.len()
-    }
     fn create_error(&mut self, kind: SemanticErrorKind) -> SemanticError {
         SemanticError::new(kind)
     }
@@ -76,24 +73,13 @@ impl<'a> Display for SymbolTable<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let functions = self.table.iter()
             .map(|e| e.1)
-            .filter(|e| match e{
-                Symbol::Function(_) => true,
-                _ => false,
-            })
+            .filter(|e| matches!(e, Symbol::Function(_)))
             .join("\n");
         let variables = self.table.iter()
             .map(|e| e.1)
-            .filter(|e| match e{
-                Symbol::Variable(..) => true,
-                _ => false,
-            })
+            .filter(|e| matches!(e, Symbol::Variable(..)))
             .join("\n");
-        
+
         write!(f,"Symbol Table\n------------\n{}\n{}",functions, variables)
     }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
 }
