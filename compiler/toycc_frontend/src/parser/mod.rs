@@ -29,8 +29,8 @@ impl<'a, S: Read + Seek> Parser<S> {
             debug,
             verbose,
             rewind: false,
-            token: Token::new(TokenKind::Eof, 0, (0,0) ),
-            previous_token: Token::new(TokenKind::Eof, 0, (0,0) ),
+            token: Token::new(TokenKind::Eof, 0, (0, 0)),
+            previous_token: Token::new(TokenKind::Eof, 0, (0, 0)),
         }
     }
 
@@ -78,7 +78,7 @@ impl<'a, S: Read + Seek> Parser<S> {
                 }
             }
         }
-        let program = Program{definitions};
+        let program = Program { definitions };
         // println!("{}", program);
         Ok(program)
     }
@@ -104,12 +104,7 @@ impl<'a, S: Read + Seek> Parser<S> {
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.rewind = true;
                 let (vardefs, statement) = self.func_def()?;
-                Definition::FuncDef(FuncDef::new(
-                    identifier,
-                    tc_type,
-                    vardefs,
-                    statement,
-                ))
+                Definition::FuncDef(FuncDef::new(identifier, tc_type, vardefs, statement))
             }
             _ => {
                 return Err(self.create_error(ParserErrorKind::ExpectedDelimiter(Delimiter::LParen)))
@@ -702,7 +697,10 @@ impl<'a, S: Read + Seek> Parser<S> {
     }
 
     fn create_error(&mut self, kind: ParserErrorKind) -> Box<ParserError> {
-        let location = (self.previous_token.location.0,self.previous_token.location.1+2);
+        let location = (
+            self.previous_token.location.0,
+            self.previous_token.location.1 + 2,
+        );
         let line = self.scanner.error_get_line(location);
         let stream_name = self.scanner.stream.name.clone().unwrap_or_default();
         Box::new(ParserError::new(kind, line, location, 1, stream_name, None))

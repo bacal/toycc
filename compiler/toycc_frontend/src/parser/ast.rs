@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 const TAB_WIDTH: usize = 2;
 
 #[derive(Debug)]
-pub struct Program{
+pub struct Program {
     pub definitions: Vec<Definition>,
 }
 

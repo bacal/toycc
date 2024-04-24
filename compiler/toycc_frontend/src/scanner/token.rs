@@ -87,7 +87,11 @@ pub struct Token {
 
 impl Token {
     pub fn new(kind: TokenKind, len: usize, location: (usize, usize)) -> Self {
-        Self { kind, len, location}
+        Self {
+            kind,
+            len,
+            location,
+        }
     }
 }
 

@@ -47,7 +47,9 @@ fn main() {
         .analyze_program(&parsed_program, file_name)
         .unwrap_or_else(|e| handle_error(*e));
     let mut output_file = File::create(format!("{file_name}.j")).unwrap();
-    output_file.write_all(jasmin_program.as_bytes()).expect("failed to write to file");
+    output_file
+        .write_all(jasmin_program.as_bytes())
+        .expect("failed to write to file");
 }
 
 fn handle_error<T: Report + Diagnostic + Display>(error: T) -> ! {
