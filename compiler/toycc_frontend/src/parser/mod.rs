@@ -337,14 +337,7 @@ impl<'a, S: Read + Seek> Parser<S> {
 
     fn null_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering null statement");
-
-        self.accept(
-            TokenKind::Delimiter(Delimiter::Semicolon),
-            ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon),
-        )?;
-
         self.debug_print("exiting null statement");
-
         Ok(Statement::NullState)
     }
 

@@ -16,11 +16,12 @@ pub enum SemanticErrorKind {
     UndeclaredFunction(String),
     MultipleBindings(String),
     IncompatibleTypes,
-    InvalidReturn,
+    InvalidReturn(String, String),
     DivisionByZero,
     MissingMain,
     ExpectedFunction,
     ExpectedIdentifier,
+    MissingReturn,
 }
 
 impl Diagnostic for SemanticError {
@@ -33,10 +34,12 @@ impl Diagnostic for SemanticError {
             SemanticErrorKind::UndeclaredFunction(ud) => format!("undeclared function {ud}"),
             SemanticErrorKind::MultipleBindings(id) => format!("redeclaration of identifier {id}"),
             SemanticErrorKind::IncompatibleTypes => "incompatible types".to_owned(),
-            SemanticErrorKind::InvalidReturn => "invalid return".to_owned(),
+            SemanticErrorKind::InvalidReturn(expected, actual) => 
+                format!("incompatible return types: expected: {expected} actual: {actual}"),
             SemanticErrorKind::DivisionByZero => "illegal division by 0".to_owned(),
             SemanticErrorKind::ExpectedFunction => "expected function declaration".to_owned(),
             SemanticErrorKind::ExpectedIdentifier => "expected identifier".to_owned(),
+            SemanticErrorKind::MissingReturn => "missing return".to_owned(),
         }
     }
 

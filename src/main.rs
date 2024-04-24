@@ -48,7 +48,7 @@ fn main() {
     
     let file_name = args.output.unwrap_or(path.file_stem().unwrap().to_string_lossy().to_string());
     let class_name = args.class.unwrap_or(file_name.clone());
-    let jasmin_program = SemanticAnalyzer::new(class_name.as_str())
+    let jasmin_program = SemanticAnalyzer::new(class_name.as_str(), args.dump_sym)
         .analyze_program(&parsed_program)
         .unwrap_or_else(|e| handle_error(*e));
     
