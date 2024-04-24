@@ -10,10 +10,11 @@ description = "ToyC Compiler for EGRE591 (SPRING 2024)"
 members = [
     "compiler/toycc_report",
     "compiler/toycc_frontend",
-    "compiler/toycc_argparser"]
+    "compiler/toycc_argparser", "compiler/toycc_backend_jvm"]
 
 [dependencies]
 colored = "2.1.0"
 toycc_frontend = {path = "compiler/toycc_frontend" }
 toycc_report = {path = "compiler/toycc_report"}
 toycc_argparser = {path = "compiler/toycc_argparser"}
+toycc_backend_jvm = {path = "compiler/toycc_backend_jvm"}

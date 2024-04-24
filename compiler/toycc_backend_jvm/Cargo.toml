@@ -1,0 +1,15 @@
+[package]
+name = "toycc_backend_jvm"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+toycc_frontend = {path="../toycc_frontend"}
+toycc_report = {path="../toycc_report"}
+colored = "2.1.0"
+itertools = "0.12.1"
+
+[build-dependencies]
+pkg-config = "0.3.30"

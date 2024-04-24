@@ -1,8 +1,11 @@
 use crate::scanner::token::{AddOP, MulOP, RelOP, Type};
+use std::fmt::{Debug, Display, Formatter};
+
+const TAB_WIDTH: usize = 2;
 
 #[derive(Debug)]
-pub enum Program {
-    Definition(Vec<Definition>),
+pub struct Program {
+    pub definitions: Vec<Definition>,
 }
 
 #[derive(Debug)]
@@ -13,22 +16,22 @@ pub enum Definition {
 
 #[derive(Debug)]
 pub struct FuncDef {
-    identifier: String,
-    toyc_type: String,
-    var_def: Vec<VarDef>,
-    statement: Statement,
+    pub identifier: String,
+    pub toyc_type: Type,
+    pub var_def: Vec<VarDef>,
+    pub statement: Statement,
 }
 
 #[derive(Debug)]
 pub struct VarDef {
-    identifiers: Vec<String>,
-    toyc_type: Type,
+    pub identifiers: Vec<String>,
+    pub toyc_type: Type,
 }
 
 impl FuncDef {
     pub fn new(
         identifier: String,
-        toyc_type: String,
+        toyc_type: Type,
         var_def: Vec<VarDef>,
         statement: Statement,
     ) -> Self {
@@ -76,7 +79,7 @@ pub enum Expression {
     Minus(Box<Expression>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Operator {
     Assign,
     Plus,
@@ -93,6 +96,46 @@ pub enum Operator {
     Equal,
     NotEqual,
 }
+
+// impl Display for Program {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         let width = f.width().unwrap_or_default();
+//         for definition in &self.definitions {
+//             write!(f, "{:>width$}\n{:>width$}\n{:>width$}", "Program(", definition, ")", width = width + TAB_WIDTH)?
+//         }
+//         Ok(())
+//     }
+// }
+//
+// impl Display for Definition {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         let width = f.width().unwrap_or_default();
+//         let variant = match self {
+//             Definition::FuncDef(func_def) => format!("{:>width$}", func_def, width = width + TAB_WIDTH),
+//             Definition::VarDef(var_def) => format!("{:>width$}", var_def, width = width + TAB_WIDTH),
+//         };
+//         write!(f, "{:>width$}\n{:>width$}\n", "Definition(", variant)?;
+//         write!(f, "{:>width$}", ")", width = width - 1)
+//     }
+// }
+//
+// impl Display for FuncDef {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "FuncDef(\n{:4}\n)", self)
+//     }
+// }
+//
+// impl Display for VarDef {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "VarDef(\n{:4}\n)", self)
+//     }
+// }
+//
+// impl Display for Statement {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         todo!();
+//     }
+// }
 
 impl From<AddOP> for Operator {
     fn from(value: AddOP) -> Self {

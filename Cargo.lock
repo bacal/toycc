@@ -34,6 +34,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
+name = "pkg-config"
+version = "0.3.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -68,6 +74,7 @@ version = "0.1.0"
 dependencies = [
  "colored",
  "toycc_argparser",
+ "toycc_backend_jvm",
  "toycc_frontend",
  "toycc_report",
 ]
@@ -78,6 +85,17 @@ version = "0.1.0"
 dependencies = [
  "colored",
  "itertools",
+ "toycc_report",
+]
+
+[[package]]
+name = "toycc_backend_jvm"
+version = "0.1.0"
+dependencies = [
+ "colored",
+ "itertools",
+ "pkg-config",
+ "toycc_frontend",
  "toycc_report",
 ]
 

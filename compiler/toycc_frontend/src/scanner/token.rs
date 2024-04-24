@@ -82,11 +82,16 @@ pub enum TokenKind {
 pub struct Token {
     pub kind: TokenKind,
     pub len: usize,
+    pub location: (usize, usize),
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, len: usize) -> Self {
-        Self { kind, len }
+    pub fn new(kind: TokenKind, len: usize, location: (usize, usize)) -> Self {
+        Self {
+            kind,
+            len,
+            location,
+        }
     }
 }
 

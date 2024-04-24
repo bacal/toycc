@@ -1,6 +1,8 @@
 mod parser;
 mod scanner;
+pub use parser::ast;
 pub use parser::Parser;
+pub use scanner::token::Type;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 
 pub struct BufferedStream<S: Read + Seek> {

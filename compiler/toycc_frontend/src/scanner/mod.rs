@@ -414,7 +414,7 @@ impl<S: Read + Seek> Scanner<S> {
     }
 
     fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
-        let token = Token::new(kind, len);
+        let token = Token::new(kind, len, self.previous_location);
         if self.debug.is_some() || self.verbose {
             println!("[SCANNER] token {token}")
         }
@@ -517,6 +517,7 @@ mod tests {
                     sci: false
                 },
                 1,
+                (1,1),
             ))
         );
 

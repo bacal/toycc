@@ -1,4 +1,4 @@
-mod ast;
+pub mod ast;
 pub mod error;
 
 use crate::parser::ast::*;
@@ -15,6 +15,7 @@ pub struct Parser<S: Read + Seek> {
     verbose: bool,
     rewind: bool,
     token: Token,
+    pub previous_token: Token,
 }
 
 impl<'a, S: Read + Seek> Parser<S> {
@@ -28,7 +29,8 @@ impl<'a, S: Read + Seek> Parser<S> {
             debug,
             verbose,
             rewind: false,
-            token: Token::new(TokenKind::Eof, 0),
+            token: Token::new(TokenKind::Eof, 0, (0, 0)),
+            previous_token: Token::new(TokenKind::Eof, 0, (0, 0)),
         }
     }
 
@@ -46,6 +48,7 @@ impl<'a, S: Read + Seek> Parser<S> {
                 Ok(&self.token)
             }
             false => {
+                self.previous_token = self.token.clone();
                 self.token = self.scanner.next_token()?;
                 Ok(&self.token)
             }
@@ -75,8 +78,9 @@ impl<'a, S: Read + Seek> Parser<S> {
                 }
             }
         }
-        println!("{:#?}", definitions);
-        Ok(Program::Definition(definitions))
+        let program = Program { definitions };
+        // println!("{}", program);
+        Ok(program)
     }
 
     fn definition(&mut self) -> Result<Definition, Box<ParserError>> {
@@ -100,12 +104,7 @@ impl<'a, S: Read + Seek> Parser<S> {
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.rewind = true;
                 let (vardefs, statement) = self.func_def()?;
-                Definition::FuncDef(FuncDef::new(
-                    identifier,
-                    tc_type.to_string(),
-                    vardefs,
-                    statement,
-                ))
+                Definition::FuncDef(FuncDef::new(identifier, tc_type, vardefs, statement))
             }
             _ => {
                 return Err(self.create_error(ParserErrorKind::ExpectedDelimiter(Delimiter::LParen)))
@@ -244,33 +243,9 @@ impl<'a, S: Read + Seek> Parser<S> {
             ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon),
         )?;
 
-        declarations.append(&mut self.other_decls()?);
+        declarations.append(&mut self.declarations()?);
 
         self.debug_print("exiting declarations");
-
-        Ok(declarations)
-    }
-
-    fn other_decls(&mut self) -> Result<Vec<VarDef>, Box<ParserError>> {
-        let mut declarations = vec![];
-
-        let toyc_type = match &self.next_token()?.kind {
-            TokenKind::Type(t) => t.clone(),
-            _ => {
-                println!("REWINDING");
-                self.rewind = true;
-                return Ok(declarations);
-            }
-        };
-
-        match &self.next_token()?.kind {
-            TokenKind::Identifier(id) => {
-                declarations.push(VarDef::new(vec![id.clone()], toyc_type))
-            }
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
-        };
-
-        declarations.append(&mut self.other_decls()?);
 
         Ok(declarations)
     }
@@ -722,8 +697,11 @@ impl<'a, S: Read + Seek> Parser<S> {
     }
 
     fn create_error(&mut self, kind: ParserErrorKind) -> Box<ParserError> {
-        let line = self.scanner.error_get_line(self.scanner.previous_location);
-        let location = self.scanner.previous_location;
+        let location = (
+            self.previous_token.location.0,
+            self.previous_token.location.1 + 2,
+        );
+        let line = self.scanner.error_get_line(location);
         let stream_name = self.scanner.stream.name.clone().unwrap_or_default();
         Box::new(ParserError::new(kind, line, location, 1, stream_name, None))
     }
