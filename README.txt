@@ -18,3 +18,6 @@ cargo run -- <arguments>
 
 for clean:
 cargo clean
+
+Notes
+Functions were implemented.
