@@ -258,7 +258,11 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
                         instructions.push(format!("istore {num}"))
                     }
-                    _ => todo!("Add Error Handling"),
+                    _ => {
+                        return Err(Box::new(SemanticError::new(
+                            SemanticErrorKind::ExpectedIdentifier,
+                        )))
+                    }
                 }
 
                 if let Some(others) = others {
@@ -276,7 +280,11 @@ impl<'a> SemanticAnalyzer<'a> {
                                 }
                                 instructions.push(format!("istore {num}"))
                             }
-                            _ => todo!("Add Error Handling"),
+                            _ => {
+                                return Err(Box::new(SemanticError::new(
+                                    SemanticErrorKind::ExpectedIdentifier,
+                                )))
+                            }
                         }
                     }
                 }
@@ -527,7 +535,11 @@ impl<'a> SemanticAnalyzer<'a> {
                     Type::Int => "I",
                     Type::Char => "C",
                 },
-                _ => todo!("Add Error Handling"),
+                _ => {
+                    return Err(Box::new(SemanticError::new(
+                        SemanticErrorKind::ExpectedFunction,
+                    )))
+                }
             },
             Expression::Expr(_, a, _) => self.get_return_type(a)?,
             Expression::Not(val) => self.get_return_type(val)?,
