@@ -75,7 +75,7 @@ impl<'a, S: Read + Seek> Parser<S> {
                 }
             }
         }
-        let program = Program{definitions};
+        let program = Program { definitions };
         println!("{}", program);
         Ok(program)
     }

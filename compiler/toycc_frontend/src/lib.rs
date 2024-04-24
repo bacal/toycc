@@ -1,7 +1,7 @@
 mod parser;
 mod scanner;
-pub use parser::Parser;
 pub use parser::ast;
+pub use parser::Parser;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 
 pub struct BufferedStream<S: Read + Seek> {
