@@ -15,6 +15,7 @@ pub struct Parser<S: Read + Seek> {
     verbose: bool,
     rewind: bool,
     token: Token,
+    pub previous_token: Token,
 }
 
 impl<'a, S: Read + Seek> Parser<S> {
@@ -28,7 +29,8 @@ impl<'a, S: Read + Seek> Parser<S> {
             debug,
             verbose,
             rewind: false,
-            token: Token::new(TokenKind::Eof, 0),
+            token: Token::new(TokenKind::Eof, 0, (0,0) ),
+            previous_token: Token::new(TokenKind::Eof, 0, (0,0) ),
         }
     }
 
@@ -46,6 +48,7 @@ impl<'a, S: Read + Seek> Parser<S> {
                 Ok(&self.token)
             }
             false => {
+                self.previous_token = self.token.clone();
                 self.token = self.scanner.next_token()?;
                 Ok(&self.token)
             }
@@ -699,8 +702,8 @@ impl<'a, S: Read + Seek> Parser<S> {
     }
 
     fn create_error(&mut self, kind: ParserErrorKind) -> Box<ParserError> {
-        let line = self.scanner.error_get_line(self.scanner.previous_location);
-        let location = self.scanner.previous_location;
+        let location = (self.previous_token.location.0,self.previous_token.location.1+2);
+        let line = self.scanner.error_get_line(location);
         let stream_name = self.scanner.stream.name.clone().unwrap_or_default();
         Box::new(ParserError::new(kind, line, location, 1, stream_name, None))
     }
