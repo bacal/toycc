@@ -15,6 +15,8 @@ int main(){
 
     a = addTwo(a);
     write("a = ",a,"\n");
+    a = addTwo(addTwo(addTwo(addTwo(addTwo(addTwo(addTwo(addTwo(addTwo(addTwo(addTwo(addTwo(a))))))))))));
+    write("a = ",a,"\n");
     return;
 }
 

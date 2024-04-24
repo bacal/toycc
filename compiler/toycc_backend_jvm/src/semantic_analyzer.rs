@@ -15,27 +15,26 @@ const CLASS_INIT_HEADER: &str = r#"
 
 #[derive(Default)]
 pub struct SemanticAnalyzer<'a> {
-    program_name: &'a str,
+    class_name: &'a str,
     symbol_table: Vec<SymbolTable<'a>>,
     conditional_count: usize,
 }
 
 impl<'a> SemanticAnalyzer<'a> {
-    pub fn new() -> Self {
+    pub fn new(class_name: &'a str) -> Self {
         Self {
             conditional_count: 0,
-            program_name: "",
+            class_name,
             symbol_table: vec![SymbolTable::default(); 1],
         }
     }
     pub fn analyze_program(
         &mut self,
         program: &'a Program,
-        name: &'a str,
     ) -> Result<String, Box<SemanticError>> {
-        self.program_name = name;
         let mut jasmin_program = format!(
-            ".class public {name}\n.super java/lang/Object{}\n",
+            ".class public {}\n.super java/lang/Object{}\n",
+            self.class_name,
             CLASS_INIT_HEADER
         );
         let x: Vec<_> = program
@@ -385,7 +384,7 @@ impl<'a> SemanticAnalyzer<'a> {
             }
 
             Expression::FuncCall(name, arguments) => {
-                let program_name = self.program_name;
+                let program_name = self.class_name;
                 instructions.append(
                     &mut arguments
                         .iter()
@@ -414,6 +413,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     )));
                 }
             }
+            
             Expression::Expr(op, expra, exprb) => {
                 let then_label = format!("CT{}", self.conditional_count);
 

@@ -42,10 +42,20 @@ fn main() {
         args.verbose,
     );
     let parsed_program = parser.parse().unwrap_or_else(|e| handle_error(*e));
-    let file_name = path.file_stem().unwrap().to_str().unwrap();
-    let jasmin_program = SemanticAnalyzer::new()
-        .analyze_program(&parsed_program, file_name)
+    if args.dump_ast {
+        println!("{parsed_program}");
+    }
+    
+    let file_name = args.output.unwrap_or(path.file_stem().unwrap().to_string_lossy().to_string());
+    let class_name = args.class.unwrap_or(file_name.clone());
+    let jasmin_program = SemanticAnalyzer::new(class_name.as_str())
+        .analyze_program(&parsed_program)
         .unwrap_or_else(|e| handle_error(*e));
+    
+    if args.dump_cgn{
+        println!("{jasmin_program}");
+    }
+    
     let mut output_file = File::create(format!("{file_name}.j")).unwrap();
     output_file
         .write_all(jasmin_program.as_bytes())
