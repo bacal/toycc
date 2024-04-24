@@ -12,22 +12,19 @@ use std::io::{Read, Seek};
 pub struct Parser<S: Read + Seek> {
     scanner: Scanner<S>,
     debug: Option<u32>,
-    verbose: bool,
     rewind: bool,
     token: Token,
     pub previous_token: Token,
 }
 
 impl<'a, S: Read + Seek> Parser<S> {
-    pub fn new(stream: S, file_name: &'a str, debug: Option<u32>, verbose: bool) -> Self {
+    pub fn new(stream: S, file_name: &'a str, debug: Option<u32>) -> Self {
         Self {
             scanner: Scanner::new(
                 BufferedStream::new(stream, Some(file_name.to_string())),
                 debug,
-                verbose,
             ),
             debug,
-            verbose,
             rewind: false,
             token: Token::new(TokenKind::Eof, 0, (0, 0)),
             previous_token: Token::new(TokenKind::Eof, 0, (0, 0)),
@@ -337,14 +334,7 @@ impl<'a, S: Read + Seek> Parser<S> {
 
     fn null_statement(&mut self) -> Result<Statement, Box<ParserError>> {
         self.debug_print("entering null statement");
-
-        self.accept(
-            TokenKind::Delimiter(Delimiter::Semicolon),
-            ParserErrorKind::ExpectedDelimiter(Delimiter::Semicolon),
-        )?;
-
         self.debug_print("exiting null statement");
-
         Ok(Statement::NullState)
     }
 

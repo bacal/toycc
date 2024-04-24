@@ -29,23 +29,36 @@ fn main() {
         handle_error(Error::MissingInput);
     }
 
+    let debug = match args.verbose {
+        true => Some(0),
+        false => args.debug,
+    };
+
     let file = match File::open(args.file_name.as_ref().unwrap()) {
         Ok(file) => file,
         Err(_) => handle_error(Error::FileNotFound(args.file_name.unwrap())),
     };
     let path = Path::new(OsStr::new(args.file_name.as_ref().unwrap()));
 
-    let mut parser = Parser::new(
-        &file,
-        args.file_name.as_ref().unwrap().as_str(),
-        args.debug,
-        args.verbose,
-    );
+    let mut parser = Parser::new(&file, args.file_name.as_ref().unwrap().as_str(), debug);
+
     let parsed_program = parser.parse().unwrap_or_else(|e| handle_error(*e));
-    let file_name = path.file_stem().unwrap().to_str().unwrap();
-    let jasmin_program = SemanticAnalyzer::new()
-        .analyze_program(&parsed_program, file_name)
+    if args.dump_ast || args.verbose {
+        println!("{parsed_program}");
+    }
+
+    let file_name = args
+        .output
+        .unwrap_or(path.file_stem().unwrap().to_string_lossy().to_string());
+    let class_name = args.class.unwrap_or(file_name.clone());
+    let jasmin_program = SemanticAnalyzer::new(class_name.as_str(), args.dump_sym)
+        .analyze_program(&parsed_program)
         .unwrap_or_else(|e| handle_error(*e));
+
+    if args.dump_cgn || args.verbose {
+        println!("{jasmin_program}");
+    }
+
     let mut output_file = File::create(format!("{file_name}.j")).unwrap();
     output_file
         .write_all(jasmin_program.as_bytes())

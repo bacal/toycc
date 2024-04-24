@@ -1,3 +1,31 @@
+int addTwo(int a){
+    return (a + 2);
+}
+int addNums(int a, int b, int c, int d, int e, int f, int g){
+    return (a+b+c+d+e+f+g);
+}
+int addNums2(int a, int b, int c, int d, int e, int f, int g){
+    return (a+b+c+d+e+f+g);
+}
+int addNums3(int a, int b, int c, int d, int e, int f, int g){
+    return (a+b+c+d+e+f+g);
+}
+
+int getValidA(){
+    int a;
+    a = 33;
+    while(a <= 2){
+        write("input a: ");
+        read(a);
+    }
+
+    a = addTwo(a);
+    write("a = ",a,"\n");
+    a = addNums(0,1,2,3,4,5,6);
+    write("a = ",a,"\n");
+    return 0;
+}
+
 int main(){
     int a;
     a = 33;
@@ -6,7 +34,12 @@ int main(){
         read(a);
         if(a <= 2)
             break;
-        write("a = ",a," which greater than 2\n");
+        else ;
     }
-    return;
+
+    a = addTwo(a);
+    write("a = ",a,"\n");
+    a = addNums(0,1,2,3,4,5,6);
+    write("a = ",a,"\n");
+    return 0;
 }

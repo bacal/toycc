@@ -38,14 +38,12 @@ pub struct Scanner<S: Read + Seek> {
     lines_read: usize,
     comments_nested: Vec<(usize, usize)>,
     pub(crate) previous_location: (usize, usize),
-    verbose: bool,
 }
 
 impl<S: Read + Seek> Scanner<S> {
-    pub fn new(stream: BufferedStream<S>, debug: Option<u32>, verbose: bool) -> Self {
+    pub fn new(stream: BufferedStream<S>, debug: Option<u32>) -> Self {
         Self {
             debug,
-            verbose,
             stream,
             state: State::Initial,
             buffer: String::new(),
@@ -415,7 +413,7 @@ impl<S: Read + Seek> Scanner<S> {
 
     fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
         let token = Token::new(kind, len, self.previous_location);
-        if self.debug.is_some() || self.verbose {
+        if self.debug.is_some() {
             println!("[SCANNER] token {token}")
         }
         self.previous_location = (self.lines_read, self.position + 1);
@@ -505,7 +503,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(data.as_bytes()), Some("sample.tc".to_string())),
             None,
-            false,
         );
 
         let mut t = scanner.next_token();
@@ -517,7 +514,7 @@ mod tests {
                     sci: false
                 },
                 1,
-                (1,1),
+                (1, 1),
             ))
         );
 
@@ -545,7 +542,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
-            false,
         );
         let mut tokens = vec![];
         loop {
@@ -590,7 +586,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
-            false,
         );
         assert_eq!(
             scanner.next_token().unwrap().kind,
@@ -604,7 +599,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
-            false,
         );
         assert_eq!(
             scanner.next_token().unwrap().kind,
@@ -618,7 +612,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
-            false,
         );
         assert!(scanner.next_token().is_err())
     }
@@ -629,7 +622,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
-            false,
         );
         assert_eq!(
             scanner.next_token().unwrap().kind,
@@ -643,7 +635,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
-            false,
         );
         assert!(scanner.next_token().is_err())
     }
@@ -653,7 +644,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
-            false,
         );
         assert!(scanner.next_token().is_err())
     }
@@ -671,7 +661,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
-            false,
         );
         let mut tokens = vec![];
         loop {
@@ -699,7 +688,6 @@ mod tests {
         let mut scanner = Scanner::new(
             BufferedStream::new(Cursor::new(SAMPLE_DATA), Some("sample.tc".to_string())),
             None,
-            false,
         );
         let mut t = scanner.next_token();
         t = scanner.next_token();

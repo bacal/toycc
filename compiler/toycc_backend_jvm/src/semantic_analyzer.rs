@@ -15,29 +15,38 @@ const CLASS_INIT_HEADER: &str = r#"
 
 #[derive(Default)]
 pub struct SemanticAnalyzer<'a> {
-    program_name: &'a str,
+    class_name: &'a str,
     symbol_table: Vec<SymbolTable<'a>>,
     conditional_count: usize,
+    dump_sym: bool,
+    scope_symbols: Vec<usize>,
 }
 
 impl<'a> SemanticAnalyzer<'a> {
-    pub fn new() -> Self {
+    pub fn new(class_name: &'a str, dump_sym: bool) -> Self {
         Self {
+            dump_sym,
             conditional_count: 0,
-            program_name: "",
+            class_name,
             symbol_table: vec![SymbolTable::default(); 1],
+            scope_symbols: vec![0],
         }
     }
-    pub fn analyze_program(
-        &mut self,
-        program: &'a Program,
-        name: &'a str,
-    ) -> Result<String, Box<SemanticError>> {
-        self.program_name = name;
+    pub fn analyze_program(&mut self, program: &'a Program) -> Result<String, Box<SemanticError>> {
         let mut jasmin_program = format!(
-            ".class public {name}\n.super java/lang/Object{}\n",
-            CLASS_INIT_HEADER
+            ".class public {}\n.super java/lang/Object{}\n",
+            self.class_name, CLASS_INIT_HEADER
         );
+
+        let has_main = program.definitions.iter().any(|def| match def {
+            Definition::FuncDef(f) => f.identifier == "main",
+            Definition::VarDef(_) => false,
+        });
+
+        if !has_main {
+            return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingMain)));
+        }
+
         let x: Vec<_> = program
             .definitions
             .iter()
@@ -48,7 +57,15 @@ impl<'a> SemanticAnalyzer<'a> {
             })?;
 
         jasmin_program += x.join("\t\n").as_str();
-
+        jasmin_program += "\n.method public static main([Ljava/lang/String;)V\n";
+        jasmin_program += format!(
+            "\tinvokestatic {}/toyc_main()I\n\tpop\n\treturn\n.end method\n",
+            self.class_name
+        )
+        .as_str();
+        if self.dump_sym {
+            println!("{}", self.symbol_table.iter().next_back().unwrap());
+        }
         Ok(jasmin_program)
     }
 
@@ -67,7 +84,7 @@ impl<'a> SemanticAnalyzer<'a> {
         func_def: &'a FuncDef,
     ) -> Result<Vec<String>, Box<SemanticError>> {
         let mut instructions = vec![];
-        let mut return_type = match func_def.toyc_type {
+        let return_type = match func_def.toyc_type {
             Type::Int => "I",
             Type::Char => "C",
         };
@@ -77,7 +94,7 @@ impl<'a> SemanticAnalyzer<'a> {
             self.analyze_var_def(var_def)?;
         }
 
-        let mut args: Vec<_> = func_def
+        let args: Vec<_> = func_def
             .var_def
             .iter()
             .map(|arg| match arg.toyc_type {
@@ -85,39 +102,90 @@ impl<'a> SemanticAnalyzer<'a> {
                 Type::Char => "C".to_string(),
             })
             .collect();
-        if func_def.identifier == "main" {
-            args = vec!["[Ljava/lang/String;".to_owned()];
-            return_type = "V";
-        }
+
+        let function_name = match func_def.identifier.as_str() {
+            "main" => "toyc_main",
+            s => s,
+        };
         let mut body = self.analyze_statement(&func_def.statement)?;
 
         self.pop_scope();
         let function = Function::new(
-            func_def.identifier.clone(),
+            function_name.to_string(),
             args.clone(),
             body.clone(),
             func_def.toyc_type.clone(),
         );
+        let expected_return_type = match function.return_type {
+            Type::Int => "I",
+            Type::Char => "C",
+        };
 
-        self.insert_symbol(func_def.identifier.as_str(), Symbol::Function(function))?;
+        let actual_return_type = match body.last() {
+            Some(return_type) => match return_type.as_str() {
+                "ireturn" => "I",
+                "return" => "V",
+                s if s.contains(':') => {
+                    body.push("nop".to_string());
+                    match body.iter().nth_back(2) {
+                        None => {
+                            return Err(Box::new(SemanticError::new(
+                                SemanticErrorKind::MissingReturn,
+                            )))
+                        }
+                        Some(return_type) => match return_type.as_str() {
+                            "ireturn" => "I",
+                            "return" => "V",
+                            _ => {
+                                return Err(Box::new(SemanticError::new(
+                                    SemanticErrorKind::MissingReturn,
+                                )))
+                            }
+                        },
+                    }
+                }
+                _ => {
+                    return Err(Box::new(SemanticError::new(
+                        SemanticErrorKind::MissingReturn,
+                    )))
+                }
+            },
+            None => {
+                return Err(Box::new(SemanticError::new(
+                    SemanticErrorKind::MissingReturn,
+                )))
+            }
+        };
+
+        if expected_return_type != actual_return_type {
+            return Err(Box::new(SemanticError::new(
+                SemanticErrorKind::InvalidReturn(
+                    expected_return_type.to_owned(),
+                    actual_return_type.to_owned(),
+                ),
+            )));
+        }
+
+        self.insert_symbol(function_name, Symbol::Function(function))?;
 
         body.iter_mut()
             .filter(|f| !f.starts_with('.') && !f.ends_with(':'))
             .for_each(|f| f.insert(0, '\t'));
 
         instructions.push(format!(".method public static {}({}){}\n\t.limit stack 1000\n\t.limit locals 1000\n{}\n.end method\n",
-                              func_def.identifier,
+                              function_name,
                               args.join(""),
                               return_type,
                               body.join("\n")));
+
         Ok(instructions)
     }
     fn analyze_var_def(&mut self, var_def: &'a VarDef) -> Result<Vec<String>, Box<SemanticError>> {
         for id in &var_def.identifiers {
-            let pos = self.symbol_table.iter_mut().next_back().unwrap().len();
+            let pos = self.scope_symbols.iter().next_back().unwrap();
             self.insert_symbol(
                 id.as_str(),
-                Symbol::Variable(var_def.toyc_type.clone(), pos + 1),
+                Symbol::Variable(id.to_owned(), var_def.toyc_type.clone(), *pos),
             )?;
         }
 
@@ -125,6 +193,7 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     fn push_scope(&mut self) {
+        self.scope_symbols.push(0);
         self.symbol_table
             .push(self.symbol_table.iter().next_back().unwrap().clone())
     }
@@ -193,7 +262,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 }
                 instructions.push(format!("{end_label}:"));
             }
-            Statement::NullState => instructions.push("nop".to_string()),
+            Statement::NullState => {}
             Statement::ReturnState(arg) => match arg {
                 Some(arg) => {
                     instructions.append(&mut self.analyze_expression(arg)?);
@@ -234,7 +303,10 @@ impl<'a> SemanticAnalyzer<'a> {
             }
             Statement::ReadState(name, others) => {
                 if self
-                    .insert_symbol("JAVA_SCANNER", Symbol::Variable(Type::Int, 900))
+                    .insert_symbol(
+                        "JAVA_SCANNER",
+                        Symbol::Variable("JAVA_SCANNER".to_owned(), Type::Int, 900),
+                    )
                     .is_ok()
                 {
                     instructions.push("new java/util/Scanner".to_owned());
@@ -249,7 +321,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 instructions.push("aload 900".to_owned());
 
                 match self.get_symbol(name)? {
-                    Symbol::Variable(toyc_type, num) => {
+                    Symbol::Variable(_, toyc_type, num) => {
                         match toyc_type {
                             Type::Int => instructions
                                 .push("invokevirtual java/util/Scanner/nextInt()I".to_string()),
@@ -258,14 +330,18 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
                         instructions.push(format!("istore {num}"))
                     }
-                    _ => todo!("Add Error Handling"),
+                    _ => {
+                        return Err(Box::new(SemanticError::new(
+                            SemanticErrorKind::ExpectedIdentifier,
+                        )))
+                    }
                 }
 
                 if let Some(others) = others {
                     for name in others {
                         instructions.push("aload 900".to_owned());
                         match self.get_symbol(name)? {
-                            Symbol::Variable(toyc_type, num) => {
+                            Symbol::Variable(_, toyc_type, num) => {
                                 match toyc_type {
                                     Type::Int => instructions.push(
                                         "invokevirtual java/util/Scanner/nextInt()I".to_string(),
@@ -276,21 +352,25 @@ impl<'a> SemanticAnalyzer<'a> {
                                 }
                                 instructions.push(format!("istore {num}"))
                             }
-                            _ => todo!("Add Error Handling"),
+                            _ => {
+                                return Err(Box::new(SemanticError::new(
+                                    SemanticErrorKind::ExpectedIdentifier,
+                                )))
+                            }
                         }
                     }
                 }
             }
             Statement::WriteState(expr, others) => {
-                let arg_type = self.get_return_type(expr)?;
+                let arg_type = self.get_jvm_type(expr)?;
                 match arg_type {
                     "S" => {
                         instructions.append(&mut self.analyze_expression(expr)?);
-                        instructions.push("astore 0".to_string());
+                        instructions.push("astore 901".to_string());
                         instructions.push(
                             "getstatic java/lang/System/out Ljava/io/PrintStream;".to_string(),
                         );
-                        instructions.push("aload 0".to_string());
+                        instructions.push("aload 901".to_string());
                         instructions.push(
                             "invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V"
                                 .to_string(),
@@ -308,16 +388,16 @@ impl<'a> SemanticAnalyzer<'a> {
                 }
                 if let Some(others) = others {
                     for expr in others {
-                        let arg_type = self.get_return_type(expr)?;
+                        let arg_type = self.get_jvm_type(expr)?;
                         match arg_type {
                             "S" => {
                                 instructions.append(&mut self.analyze_expression(expr)?);
-                                instructions.push("astore 0".to_string());
+                                instructions.push("astore 901".to_string());
                                 instructions.push(
                                     "getstatic java/lang/System/out Ljava/io/PrintStream;"
                                         .to_string(),
                                 );
-                                instructions.push("aload 0".to_string());
+                                instructions.push("aload 901".to_string());
                                 instructions.push(
                                     "invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V"
                                         .to_string(),
@@ -360,7 +440,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 }
             }
             Expression::Identifier(id) => match self.get_symbol(id)? {
-                Symbol::Variable(_, num) => instructions.push(format!("iload {num}")),
+                Symbol::Variable(_, _, num) => instructions.push(format!("iload {num}")),
                 _ => {
                     return Err(Box::new(SemanticError::new(
                         SemanticErrorKind::ExpectedIdentifier,
@@ -377,7 +457,7 @@ impl<'a> SemanticAnalyzer<'a> {
             }
 
             Expression::FuncCall(name, arguments) => {
-                let program_name = self.program_name;
+                let program_name = self.class_name;
                 instructions.append(
                     &mut arguments
                         .iter()
@@ -391,9 +471,13 @@ impl<'a> SemanticAnalyzer<'a> {
 
                 if let Symbol::Function(func) = self.get_symbol(name)? {
                     let call = format!(
-                        "invokestatic {}/{name}({})",
+                        "invokestatic {}/{name}({}){}",
                         program_name,
-                        func.arguments.clone().join("")
+                        func.arguments.clone().join(""),
+                        match func.return_type {
+                            Type::Int => "I",
+                            Type::Char => "C",
+                        }
                     );
                     instructions.push(call);
                 } else {
@@ -402,6 +486,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     )));
                 }
             }
+
             Expression::Expr(op, expra, exprb) => {
                 let then_label = format!("CT{}", self.conditional_count);
 
@@ -413,8 +498,26 @@ impl<'a> SemanticAnalyzer<'a> {
                     Operator::Plus => instructions.push("iadd".to_owned()),
                     Operator::Minus => instructions.push("isub".to_owned()),
                     Operator::Multiply => instructions.push("imul".to_owned()),
-                    Operator::Divide => instructions.push("idiv".to_owned()),
-                    Operator::Modulo => instructions.push("irem".to_owned()),
+                    Operator::Divide => {
+                        if let Expression::Number(num) = exprb.as_ref() {
+                            if *num == 0.0 {
+                                return Err(Box::new(SemanticError::new(
+                                    SemanticErrorKind::DivisionByZero,
+                                )));
+                            }
+                        }
+                        instructions.push("idiv".to_owned())
+                    }
+                    Operator::Modulo => {
+                        if let Expression::Number(num) = exprb.as_ref() {
+                            if *num == 0.0 {
+                                return Err(Box::new(SemanticError::new(
+                                    SemanticErrorKind::DivisionByZero,
+                                )));
+                            }
+                        }
+                        instructions.push("irem".to_owned())
+                    }
                     Operator::Or => instructions.push("ior".to_owned()),
                     Operator::And => instructions.push("iand".to_owned()),
                     Operator::LessEqual => instructions.push(format!("if_icmple {then_label}")),
@@ -425,7 +528,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     Operator::NotEqual => instructions.push(format!("if_icmpne {then_label}")),
                     Operator::Assign => match expra.as_ref() {
                         Expression::Identifier(id) => match self.get_symbol(id)? {
-                            Symbol::Variable(_, num) => {
+                            Symbol::Variable(.., num) => {
                                 instructions.push(format!("istore {num}"));
                             }
                             _ => {
@@ -461,19 +564,21 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     fn get_symbol(&mut self, name: &'a str) -> Result<&Symbol, Box<SemanticError>> {
-        Ok(self
-            .symbol_table
+        self.symbol_table
             .iter_mut()
             .next_back()
             .unwrap()
             .find(name)
-            .unwrap())
+            .ok_or(Box::new(SemanticError::new(
+                SemanticErrorKind::UndeclaredIdentifier(name.to_string()),
+            )))
     }
     fn insert_symbol(
         &mut self,
         name: &'a str,
         symbol: Symbol,
     ) -> Result<&Symbol, Box<SemanticError>> {
+        *self.scope_symbols.iter_mut().next_back().unwrap() += 1;
         self.symbol_table
             .iter_mut()
             .next_back()
@@ -481,14 +586,11 @@ impl<'a> SemanticAnalyzer<'a> {
             .insert(name, symbol)
     }
 
-    fn get_return_type(
-        &mut self,
-        expr: &'a Expression,
-    ) -> Result<&'static str, Box<SemanticError>> {
+    fn get_jvm_type(&mut self, expr: &'a Expression) -> Result<&'static str, Box<SemanticError>> {
         Ok(match expr {
             Expression::Number(_) => "I",
             Expression::Identifier(id) => match self.get_symbol(id)? {
-                Symbol::Variable(t_type, _) => match t_type {
+                Symbol::Variable(_, t_type, _) => match t_type {
                     Type::Int => "I",
                     Type::Char => "C",
                 },
@@ -504,11 +606,15 @@ impl<'a> SemanticAnalyzer<'a> {
                     Type::Int => "I",
                     Type::Char => "C",
                 },
-                _ => todo!("Add Error Handling"),
+                _ => {
+                    return Err(Box::new(SemanticError::new(
+                        SemanticErrorKind::ExpectedFunction,
+                    )))
+                }
             },
-            Expression::Expr(_, a, _) => self.get_return_type(a)?,
-            Expression::Not(val) => self.get_return_type(val)?,
-            Expression::Minus(val) => self.get_return_type(val)?,
+            Expression::Expr(_, a, _) => self.get_jvm_type(a)?,
+            Expression::Not(val) => self.get_jvm_type(val)?,
+            Expression::Minus(val) => self.get_jvm_type(val)?,
         })
     }
 }
@@ -522,11 +628,10 @@ pub mod test {
         let program = toycc_frontend::Parser::new(
             Cursor::new("int isEven(int n){if ((n % 2) == 0) return 1; else return 0;}int main(){int a; int c; c = 44; a = c; return 0;}"),
             "test.tc",
-            Some(2),
-            false).parse().expect("failed to parse");
+            Some(2)).parse().expect("failed to parse");
         // println!("{:#?}",program);
-        let mut analyzer = SemanticAnalyzer::new();
-        let c = analyzer.analyze_program(&program, "test.tc");
+        let mut analyzer = SemanticAnalyzer::new("test", false);
+        let c = analyzer.analyze_program(&program);
         assert!(c.is_ok());
 
         println!("{}", c.unwrap());

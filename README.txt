@@ -8,12 +8,12 @@ for setup:
 * follow installation/setup instructions on https://rustup.rs/ *
 
 for build:
-cargo build
+cargo build --release
 
 for run:
 cargo run -- <arguments>
     or
-./target/<debug or release>/toycc <arguments>
+./target/release/toycc <arguments>
 
 
 for clean:

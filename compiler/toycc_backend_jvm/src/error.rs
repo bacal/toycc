@@ -1,10 +1,5 @@
 use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
 
-pub enum BackendError {
-    SemanticError(SemanticError),
-    CodeGenerationError,
-}
-
 #[derive(Report, Debug)]
 pub struct SemanticError {
     kind: SemanticErrorKind,
@@ -21,34 +16,38 @@ pub enum SemanticErrorKind {
     UndeclaredFunction(String),
     MultipleBindings(String),
     IncompatibleTypes,
-    InvalidReturn,
+    InvalidReturn(String, String),
     DivisionByZero,
     MissingMain,
     ExpectedFunction,
     ExpectedIdentifier,
+    MissingReturn,
 }
 
 impl Diagnostic for SemanticError {
     fn info(&self) -> String {
         match &self.kind {
             SemanticErrorKind::UndeclaredIdentifier(id) => {
-                format!("undeclared identifier '\'{id}\'")
+                format!("undeclared identifier \'{id}\'")
             }
             SemanticErrorKind::MissingMain => "missing main function".to_owned(),
             SemanticErrorKind::UndeclaredFunction(ud) => format!("undeclared function {ud}"),
             SemanticErrorKind::MultipleBindings(id) => format!("redeclaration of identifier {id}"),
             SemanticErrorKind::IncompatibleTypes => "incompatible types".to_owned(),
-            SemanticErrorKind::InvalidReturn => "invalid return".to_owned(),
+            SemanticErrorKind::InvalidReturn(expected, actual) => {
+                format!("incompatible return types: expected: {expected} actual: {actual}")
+            }
             SemanticErrorKind::DivisionByZero => "illegal division by 0".to_owned(),
             SemanticErrorKind::ExpectedFunction => "expected function declaration".to_owned(),
             SemanticErrorKind::ExpectedIdentifier => "expected identifier".to_owned(),
+            SemanticErrorKind::MissingReturn => "missing return".to_owned(),
         }
     }
 
     fn level(&self) -> ReportLevel {
         ReportLevel::Error(ErrorKind::ParsingError {
             file_name: Default::default(),
-            pos: Default::default(),
+            pos: (1, 1),
             len: Default::default(),
             source: Default::default(),
         })
