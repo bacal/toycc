@@ -12,21 +12,18 @@ use std::io::{Read, Seek};
 pub struct Parser<S: Read + Seek> {
     scanner: Scanner<S>,
     debug: Option<u32>,
-    verbose: bool,
     rewind: bool,
     token: Token,
 }
 
 impl<'a, S: Read + Seek> Parser<S> {
-    pub fn new(stream: S, file_name: &'a str, debug: Option<u32>, verbose: bool) -> Self {
+    pub fn new(stream: S, file_name: &'a str, debug: Option<u32>) -> Self {
         Self {
             scanner: Scanner::new(
                 BufferedStream::new(stream, Some(file_name.to_string())),
                 debug,
-                verbose,
             ),
             debug,
-            verbose,
             rewind: false,
             token: Token::new(TokenKind::Eof, 0),
         }

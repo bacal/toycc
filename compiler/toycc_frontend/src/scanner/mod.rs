@@ -38,14 +38,12 @@ pub struct Scanner<S: Read + Seek> {
     lines_read: usize,
     comments_nested: Vec<(usize, usize)>,
     pub(crate) previous_location: (usize, usize),
-    verbose: bool,
 }
 
 impl<S: Read + Seek> Scanner<S> {
-    pub fn new(stream: BufferedStream<S>, debug: Option<u32>, verbose: bool) -> Self {
+    pub fn new(stream: BufferedStream<S>, debug: Option<u32>) -> Self {
         Self {
             debug,
-            verbose,
             stream,
             state: State::Initial,
             buffer: String::new(),
@@ -415,7 +413,7 @@ impl<S: Read + Seek> Scanner<S> {
 
     fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
         let token = Token::new(kind, len);
-        if self.debug.is_some() || self.verbose {
+        if self.debug.is_some() {
             println!("[SCANNER] token {token}")
         }
         self.previous_location = (self.lines_read, self.position + 1);
