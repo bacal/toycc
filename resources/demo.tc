@@ -1,3 +1,7 @@
+int addTwo(int a){
+    return (a + 2);
+}
+
 int main(){
     int a;
     a = 33;
@@ -8,5 +12,9 @@ int main(){
             break;
         write("a = ",a," which greater than 2\n");
     }
+
+    a = addTwo(a);
+    write("a = ",a,"\n");
     return;
 }
+

@@ -117,7 +117,7 @@ impl<'a> SemanticAnalyzer<'a> {
             let pos = self.symbol_table.iter_mut().next_back().unwrap().len();
             self.insert_symbol(
                 id.as_str(),
-                Symbol::Variable(var_def.toyc_type.clone(), pos + 1),
+                Symbol::Variable(var_def.toyc_type.clone(), pos),
             )?;
         }
 
@@ -286,11 +286,11 @@ impl<'a> SemanticAnalyzer<'a> {
                 match arg_type {
                     "S" => {
                         instructions.append(&mut self.analyze_expression(expr)?);
-                        instructions.push("astore 0".to_string());
+                        instructions.push("astore 901".to_string());
                         instructions.push(
                             "getstatic java/lang/System/out Ljava/io/PrintStream;".to_string(),
                         );
-                        instructions.push("aload 0".to_string());
+                        instructions.push("aload 901".to_string());
                         instructions.push(
                             "invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V"
                                 .to_string(),
@@ -312,12 +312,12 @@ impl<'a> SemanticAnalyzer<'a> {
                         match arg_type {
                             "S" => {
                                 instructions.append(&mut self.analyze_expression(expr)?);
-                                instructions.push("astore 0".to_string());
+                                instructions.push("astore 901".to_string());
                                 instructions.push(
                                     "getstatic java/lang/System/out Ljava/io/PrintStream;"
                                         .to_string(),
                                 );
-                                instructions.push("aload 0".to_string());
+                                instructions.push("aload 901".to_string());
                                 instructions.push(
                                     "invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V"
                                         .to_string(),
@@ -391,9 +391,13 @@ impl<'a> SemanticAnalyzer<'a> {
 
                 if let Symbol::Function(func) = self.get_symbol(name)? {
                     let call = format!(
-                        "invokestatic {}/{name}({})",
+                        "invokestatic {}/{name}({}){}",
                         program_name,
-                        func.arguments.clone().join("")
+                        func.arguments.clone().join(""),
+                        match func.return_type {
+                            Type::Int => "I",
+                            Type::Char => "C",
+                        }
                     );
                     instructions.push(call);
                 } else {
@@ -413,8 +417,26 @@ impl<'a> SemanticAnalyzer<'a> {
                     Operator::Plus => instructions.push("iadd".to_owned()),
                     Operator::Minus => instructions.push("isub".to_owned()),
                     Operator::Multiply => instructions.push("imul".to_owned()),
-                    Operator::Divide => instructions.push("idiv".to_owned()),
-                    Operator::Modulo => instructions.push("irem".to_owned()),
+                    Operator::Divide => {
+                        if let Expression::Number(num) = exprb.as_ref() {
+                            if *num == 0.0 {
+                                return Err(Box::new(SemanticError::new(
+                                    SemanticErrorKind::DivisionByZero,
+                                )));
+                            }
+                        }
+                        instructions.push("idiv".to_owned())
+                    }
+                    Operator::Modulo => {
+                        if let Expression::Number(num) = exprb.as_ref() {
+                            if *num == 0.0 {
+                                return Err(Box::new(SemanticError::new(
+                                    SemanticErrorKind::DivisionByZero,
+                                )));
+                            }
+                        }
+                        instructions.push("irem".to_owned())
+                    }
                     Operator::Or => instructions.push("ior".to_owned()),
                     Operator::And => instructions.push("iand".to_owned()),
                     Operator::LessEqual => instructions.push(format!("if_icmple {then_label}")),
@@ -461,13 +483,14 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     fn get_symbol(&mut self, name: &'a str) -> Result<&Symbol, Box<SemanticError>> {
-        Ok(self
-            .symbol_table
+        self.symbol_table
             .iter_mut()
             .next_back()
             .unwrap()
             .find(name)
-            .unwrap())
+            .ok_or(Box::new(SemanticError::new(
+                SemanticErrorKind::UndeclaredIdentifier(name.to_string()),
+            )))
     }
     fn insert_symbol(
         &mut self,

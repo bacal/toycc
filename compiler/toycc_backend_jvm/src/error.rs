@@ -1,10 +1,5 @@
 use toycc_report::{Diagnostic, ErrorKind, Report, ReportLevel};
 
-pub enum BackendError {
-    SemanticError(SemanticError),
-    CodeGenerationError,
-}
-
 #[derive(Report, Debug)]
 pub struct SemanticError {
     kind: SemanticErrorKind,
@@ -32,7 +27,7 @@ impl Diagnostic for SemanticError {
     fn info(&self) -> String {
         match &self.kind {
             SemanticErrorKind::UndeclaredIdentifier(id) => {
-                format!("undeclared identifier '\'{id}\'")
+                format!("undeclared identifier \'{id}\'")
             }
             SemanticErrorKind::MissingMain => "missing main function".to_owned(),
             SemanticErrorKind::UndeclaredFunction(ud) => format!("undeclared function {ud}"),
@@ -48,7 +43,7 @@ impl Diagnostic for SemanticError {
     fn level(&self) -> ReportLevel {
         ReportLevel::Error(ErrorKind::ParsingError {
             file_name: Default::default(),
-            pos: Default::default(),
+            pos: (1, 1),
             len: Default::default(),
             source: Default::default(),
         })
