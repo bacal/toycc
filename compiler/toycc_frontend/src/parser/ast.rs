@@ -144,6 +144,18 @@ impl Display for VarDef {
 
 impl Display for Statement {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // let width = f.width().unwrap_or_default();
+        // let variant = match self {
+        //     Statement::Expression(e) => {
+        //         // format!("{:>width$}", e, width = width + TAB_WIDTH)
+        //     }
+        //     Statement::Break => {
+        //         format!("{:>width$}", _, width = width + TAB_WIDTH)
+        //     }
+        // };
+        // write!(f, "{:>width$}\n{:>width$}\n", "Definition(", variant)?;
+        // write!(f, "{:>width$}", ")", width = width - 1)
+
         todo!();
     }
 }
