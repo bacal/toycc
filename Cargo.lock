@@ -86,6 +86,7 @@ name = "toycc_frontend"
 version = "0.1.0"
 dependencies = [
  "colored",
+ "itertools",
  "toycc_report",
 ]
 

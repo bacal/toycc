@@ -1,4 +1,5 @@
 use crate::scanner::token::{AddOP, MulOP, RelOP, Type};
+use itertools::Itertools;
 use std::fmt::{Debug, Display, Formatter};
 
 const TAB_WIDTH: usize = 2;
@@ -144,19 +145,128 @@ impl Display for VarDef {
 
 impl Display for Statement {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // let width = f.width().unwrap_or_default();
-        // let variant = match self {
-        //     Statement::Expression(e) => {
-        //         // format!("{:>width$}", e, width = width + TAB_WIDTH)
-        //     }
-        //     Statement::Break => {
-        //         format!("{:>width$}", _, width = width + TAB_WIDTH)
-        //     }
-        // };
-        // write!(f, "{:>width$}\n{:>width$}\n", "Definition(", variant)?;
-        // write!(f, "{:>width$}", ")", width = width - 1)
+        let width = f.width().unwrap_or_default();
+        let variant = match self {
+            Statement::Expression(e) => {
+                write!(f, "{:>width$}", e, width = width + TAB_WIDTH);
+            }
 
-        todo!();
+            Statement::Break => {
+                write!(
+                    f,
+                    "{:>width$}",
+                    "BreakStatement\n",
+                    width = width + TAB_WIDTH
+                );
+            }
+
+            Statement::BlockState(u, v) => {
+                write!(
+                    f,
+                    "{:>width$}",
+                    "BlockStatement(\n",
+                    width = width + TAB_WIDTH
+                );
+                write!(f, "{:>width$}", "[\n", width = width + TAB_WIDTH);
+                let u_formatted = u
+                    .iter()
+                    .map(|i| format!("{:>width$}", i, width = width + 2 * TAB_WIDTH))
+                    .join(",\n");
+                write!(f, "{:>width$}", u_formatted);
+                write!(f, "{:>width$}", "],\n", width = width + TAB_WIDTH);
+                let v_formatted = v
+                    .iter()
+                    .map(|i| format!("{:>width$}", i, width = width + 2 * TAB_WIDTH))
+                    .join(",\n");
+                write!(f, "{:>width$}", v_formatted);
+                write!(f, "{:>width$}", "],\n", width = width + TAB_WIDTH);
+            }
+
+            Statement::IfState(e, s, s1) => {
+                write!(f, "{:>width$}", "IfStatement(\n", width = width + TAB_WIDTH);
+                write!(f, "{:>width$}", "[\n", width = width + TAB_WIDTH);
+                write!(f, "{:>width$}", e, width = width + 2 * TAB_WIDTH);
+                write!(f, "{:>width$}", s.as_ref(), width = width + 2 * TAB_WIDTH);
+                if let Some(expr) = s1.as_ref() {
+                    write!(f, "{:>width$}", expr, width = width + 2 * TAB_WIDTH);
+                };
+                write!(f, "{:>width$}", "]\n", width = width + TAB_WIDTH);
+            }
+
+            Statement::NullState => {
+                write!(f, "{:>width$}", "NullStatement", width = width + TAB_WIDTH);
+            }
+
+            Statement::ReturnState(e) => {
+                write!(
+                    f,
+                    "{:>width$}",
+                    "ReturnStatement(",
+                    width = width + TAB_WIDTH
+                );
+                write!(f, "{:>width$}", e, width = width + 2 * TAB_WIDTH);
+                write!(f, "{:>width$}", ")\n", width = width + TAB_WIDTH);
+            }
+
+            Statement::WhileState(e, s) => {
+                write!(
+                    f,
+                    "{:>width$}",
+                    "WhileStatement(",
+                    width = width + TAB_WIDTH
+                );
+                write!(f, "{:>width$}", "[\n", width = width + TAB_WIDTH);
+                write!(f, "{:>width$}", e, width = width + 2 * TAB_WIDTH);
+                write!(f, "{:>width$}", "],\n", width = width + TAB_WIDTH);
+                write!(f, "{:>width$}", "[\n", width = width + TAB_WIDTH);
+                write!(f, "{:>width$}", s.as_ref(), width = width + 2 * TAB_WIDTH);
+                write!(f, "{:>width$}", "]\n", width = width + TAB_WIDTH);
+                write!(f, "{:>width$}", ")\n", width = width + TAB_WIDTH);
+            }
+
+            Statement::ReadState(s, s1) => {
+                write!(f, "{:>width$}", "ReadStatement(", width = width + TAB_WIDTH);
+                write!(f, "{:>width$}", s, width = width + 2 * TAB_WIDTH);
+                write!(f, "{:>width$}", ",\n", width = width + 2 * TAB_WIDTH);
+                let s1_formatted = match s1 {
+                    Some(s1) => s1
+                        .iter()
+                        .map(|f| format!("{:>width$}", f, width = width + 2 * TAB_WIDTH))
+                        .join(",\n"),
+                    None => format!("{:>width$}", "[]"),
+                };
+                write!(f, "{:>width$}", s1_formatted);
+                write!(f, "{:>width$}", ")\n", width = width + TAB_WIDTH);
+            }
+
+            Statement::WriteState(e, e1) => {
+                write!(
+                    f,
+                    "{:>width$}",
+                    "WriteStatement(",
+                    width = width + TAB_WIDTH
+                );
+                write!(f, "{:>width$}", e, width = width + 2 * TAB_WIDTH);
+                write!(f, "{:>width$}", ",\n", width = width + 2 * TAB_WIDTH);
+                let e1_formatted = e1
+                    .unwrap()
+                    .iter()
+                    .map(|f| format!("{:>width$}", f, width = width + 2 * TAB_WIDTH))
+                    .join(",\n");
+
+                write!(f, "{:>width$}", e1_formatted);
+                write!(f, "{:>width$}", ")\n", width = width + TAB_WIDTH);
+            }
+
+            Statement::NewLineState => {
+                write!(
+                    f,
+                    "{:>width$}",
+                    "NewLineStatement",
+                    width = width + TAB_WIDTH
+                );
+            }
+        };
     }
 }
 

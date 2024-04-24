@@ -2,11 +2,15 @@
 name = "toycc_frontend"
 version = "0.1.0"
 edition = "2021"
-authors = ["Bacal Mesfin:<mesfinb2@vcu.edu>", "Yaqub Mukhtar:<mukhtaryw@vcu.edu>"]
+authors = [
+    "Bacal Mesfin:<mesfinb2@vcu.edu>",
+    "Yaqub Mukhtar:<mukhtaryw@vcu.edu>",
+]
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-toycc_report = {path = "../toycc_report"}
+toycc_report = { path = "../toycc_report" }
+itertools = "0.12.1"
 colored = "2.1.0"
