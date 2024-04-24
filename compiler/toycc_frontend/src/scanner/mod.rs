@@ -413,7 +413,7 @@ impl<S: Read + Seek> Scanner<S> {
 
     fn create_token(&mut self, kind: TokenKind, len: usize) -> Token {
         let token = Token::new(kind, len, self.previous_location);
-        if self.debug.is_some(){
+        if self.debug.is_some() {
             println!("[SCANNER] token {token}")
         }
         self.previous_location = (self.lines_read, self.position + 1);

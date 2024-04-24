@@ -32,23 +32,19 @@ impl<'a> SemanticAnalyzer<'a> {
             scope_symbols: vec![0],
         }
     }
-    pub fn analyze_program(
-        &mut self,
-        program: &'a Program,
-    ) -> Result<String, Box<SemanticError>> {
+    pub fn analyze_program(&mut self, program: &'a Program) -> Result<String, Box<SemanticError>> {
         let mut jasmin_program = format!(
             ".class public {}\n.super java/lang/Object{}\n",
-            self.class_name,
-            CLASS_INIT_HEADER
+            self.class_name, CLASS_INIT_HEADER
         );
 
-        let has_main = program.definitions.iter().any(|def| match def{
+        let has_main = program.definitions.iter().any(|def| match def {
             Definition::FuncDef(f) => f.identifier == "main",
-            Definition::VarDef(_) => false
+            Definition::VarDef(_) => false,
         });
 
-        if !has_main{
-            return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingMain)))
+        if !has_main {
+            return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingMain)));
         }
 
         let x: Vec<_> = program
@@ -62,9 +58,13 @@ impl<'a> SemanticAnalyzer<'a> {
 
         jasmin_program += x.join("\t\n").as_str();
         jasmin_program += "\n.method public static main([Ljava/lang/String;)V\n";
-        jasmin_program += format!("\tinvokestatic {}/toyc_main()I\n\tpop\n\treturn\n.end method\n", self.class_name).as_str();
-        if self.dump_sym{
-            println!("{}",self.symbol_table.iter().next_back().unwrap());
+        jasmin_program += format!(
+            "\tinvokestatic {}/toyc_main()I\n\tpop\n\treturn\n.end method\n",
+            self.class_name
+        )
+        .as_str();
+        if self.dump_sym {
+            println!("{}", self.symbol_table.iter().next_back().unwrap());
         }
         Ok(jasmin_program)
     }
@@ -103,7 +103,7 @@ impl<'a> SemanticAnalyzer<'a> {
             })
             .collect();
 
-        let function_name = match func_def.identifier.as_str(){
+        let function_name = match func_def.identifier.as_str() {
             "main" => "toyc_main",
             s => s,
         };
@@ -116,42 +116,54 @@ impl<'a> SemanticAnalyzer<'a> {
             body.clone(),
             func_def.toyc_type.clone(),
         );
-        let expected_return_type = match function.return_type{
+        let expected_return_type = match function.return_type {
             Type::Int => "I",
             Type::Char => "C",
         };
 
-        let actual_return_type = match body.last(){
-            Some(return_type) => {
-                match return_type.as_str(){
-                    "ireturn" => "I",
-                    "return" => "V",
-                    s if s.contains(':') => {
-                        body.push("nop".to_string());
-                        match body.iter().nth_back(2){
-                            None => return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingReturn))),
-                            Some(return_type) => match return_type.as_str(){
-                                "ireturn" => "I",
-                                "return" => "V",
-                                _ => return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingReturn))),
-                            }
+        let actual_return_type = match body.last() {
+            Some(return_type) => match return_type.as_str() {
+                "ireturn" => "I",
+                "return" => "V",
+                s if s.contains(':') => {
+                    body.push("nop".to_string());
+                    match body.iter().nth_back(2) {
+                        None => {
+                            return Err(Box::new(SemanticError::new(
+                                SemanticErrorKind::MissingReturn,
+                            )))
                         }
+                        Some(return_type) => match return_type.as_str() {
+                            "ireturn" => "I",
+                            "return" => "V",
+                            _ => {
+                                return Err(Box::new(SemanticError::new(
+                                    SemanticErrorKind::MissingReturn,
+                                )))
+                            }
+                        },
                     }
-                    _ => return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingReturn)))
                 }
+                _ => {
+                    return Err(Box::new(SemanticError::new(
+                        SemanticErrorKind::MissingReturn,
+                    )))
+                }
+            },
+            None => {
+                return Err(Box::new(SemanticError::new(
+                    SemanticErrorKind::MissingReturn,
+                )))
             }
-            None => return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingReturn)))
         };
 
-        if expected_return_type != actual_return_type{
-            return Err(
-                Box::new(
-                    SemanticError::new(
-                        SemanticErrorKind::InvalidReturn(expected_return_type.to_owned(),
-                                                         actual_return_type.to_owned())
-                    )
-                )
-            )
+        if expected_return_type != actual_return_type {
+            return Err(Box::new(SemanticError::new(
+                SemanticErrorKind::InvalidReturn(
+                    expected_return_type.to_owned(),
+                    actual_return_type.to_owned(),
+                ),
+            )));
         }
 
         self.insert_symbol(function_name, Symbol::Function(function))?;
@@ -250,7 +262,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 }
                 instructions.push(format!("{end_label}:"));
             }
-            Statement::NullState => {},
+            Statement::NullState => {}
             Statement::ReturnState(arg) => match arg {
                 Some(arg) => {
                     instructions.append(&mut self.analyze_expression(arg)?);
@@ -291,7 +303,10 @@ impl<'a> SemanticAnalyzer<'a> {
             }
             Statement::ReadState(name, others) => {
                 if self
-                    .insert_symbol("JAVA_SCANNER", Symbol::Variable("JAVA_SCANNER".to_owned(), Type::Int, 900))
+                    .insert_symbol(
+                        "JAVA_SCANNER",
+                        Symbol::Variable("JAVA_SCANNER".to_owned(), Type::Int, 900),
+                    )
                     .is_ok()
                 {
                     instructions.push("new java/util/Scanner".to_owned());
@@ -425,7 +440,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 }
             }
             Expression::Identifier(id) => match self.get_symbol(id)? {
-                Symbol::Variable(_,_, num) => instructions.push(format!("iload {num}")),
+                Symbol::Variable(_, _, num) => instructions.push(format!("iload {num}")),
                 _ => {
                     return Err(Box::new(SemanticError::new(
                         SemanticErrorKind::ExpectedIdentifier,
@@ -563,7 +578,7 @@ impl<'a> SemanticAnalyzer<'a> {
         name: &'a str,
         symbol: Symbol,
     ) -> Result<&Symbol, Box<SemanticError>> {
-        *self.scope_symbols.iter_mut().next_back().unwrap() +=1;
+        *self.scope_symbols.iter_mut().next_back().unwrap() += 1;
         self.symbol_table
             .iter_mut()
             .next_back()
@@ -571,10 +586,7 @@ impl<'a> SemanticAnalyzer<'a> {
             .insert(name, symbol)
     }
 
-    fn get_jvm_type(
-        &mut self,
-        expr: &'a Expression,
-    ) -> Result<&'static str, Box<SemanticError>> {
+    fn get_jvm_type(&mut self, expr: &'a Expression) -> Result<&'static str, Box<SemanticError>> {
         Ok(match expr {
             Expression::Number(_) => "I",
             Expression::Identifier(id) => match self.get_symbol(id)? {
@@ -618,7 +630,7 @@ pub mod test {
             "test.tc",
             Some(2)).parse().expect("failed to parse");
         // println!("{:#?}",program);
-        let mut analyzer = SemanticAnalyzer::new("test",false);
+        let mut analyzer = SemanticAnalyzer::new("test", false);
         let c = analyzer.analyze_program(&program);
         assert!(c.is_ok());
 

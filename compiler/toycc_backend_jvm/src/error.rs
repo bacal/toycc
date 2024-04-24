@@ -34,8 +34,9 @@ impl Diagnostic for SemanticError {
             SemanticErrorKind::UndeclaredFunction(ud) => format!("undeclared function {ud}"),
             SemanticErrorKind::MultipleBindings(id) => format!("redeclaration of identifier {id}"),
             SemanticErrorKind::IncompatibleTypes => "incompatible types".to_owned(),
-            SemanticErrorKind::InvalidReturn(expected, actual) => 
-                format!("incompatible return types: expected: {expected} actual: {actual}"),
+            SemanticErrorKind::InvalidReturn(expected, actual) => {
+                format!("incompatible return types: expected: {expected} actual: {actual}")
+            }
             SemanticErrorKind::DivisionByZero => "illegal division by 0".to_owned(),
             SemanticErrorKind::ExpectedFunction => "expected function declaration".to_owned(),
             SemanticErrorKind::ExpectedIdentifier => "expected identifier".to_owned(),

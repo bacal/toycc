@@ -1,7 +1,7 @@
 use crate::error::{SemanticError, SemanticErrorKind};
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use itertools::Itertools;
 use toycc_frontend::Type;
 
 /// Symbol names in table are mangled to avoid collisions
@@ -15,19 +15,21 @@ pub enum Symbol {
     Function(Function),
 }
 
-impl Display for Symbol{
+impl Display for Symbol {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self{
+        match self {
             Symbol::Variable(name, t, _) => {
-                write!(f,"[Variable] Name: {:<10}\tType: {:>7}",name, t)
-            },
+                write!(f, "[Variable] Name: {:<10}\tType: {:>7}", name, t)
+            }
             Symbol::Function(function) => {
-                write!(f,"[Function] name: {:<10}\tReturn Type: {:<4}\tArgs: {:<20}",
-                        function.name,
-                        function.return_type,
-                        function.arguments.join(","),
+                write!(
+                    f,
+                    "[Function] name: {:<10}\tReturn Type: {:<4}\tArgs: {:<20}",
+                    function.name,
+                    function.return_type,
+                    function.arguments.join(","),
                 )
-            },
+            }
         }
     }
 }
@@ -71,15 +73,23 @@ impl<'a> SymbolTable<'a> {
 
 impl<'a> Display for SymbolTable<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let functions = self.table.iter()
+        let functions = self
+            .table
+            .iter()
             .map(|e| e.1)
             .filter(|e| matches!(e, Symbol::Function(_)))
             .join("\n");
-        let variables = self.table.iter()
+        let variables = self
+            .table
+            .iter()
             .map(|e| e.1)
             .filter(|e| matches!(e, Symbol::Variable(..)))
             .join("\n");
 
-        write!(f,"Symbol Table\n------------\n{}\n{}",functions, variables)
+        write!(
+            f,
+            "Symbol Table\n------------\n{}\n{}",
+            functions, variables
+        )
     }
 }

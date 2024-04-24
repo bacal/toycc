@@ -29,7 +29,7 @@ fn main() {
         handle_error(Error::MissingInput);
     }
 
-    let debug = match args.verbose{
+    let debug = match args.verbose {
         true => Some(0),
         false => args.debug,
     };
@@ -40,24 +40,22 @@ fn main() {
     };
     let path = Path::new(OsStr::new(args.file_name.as_ref().unwrap()));
 
-    let mut parser = Parser::new(
-        &file,
-        args.file_name.as_ref().unwrap().as_str(),
-        debug,
-    );
+    let mut parser = Parser::new(&file, args.file_name.as_ref().unwrap().as_str(), debug);
 
     let parsed_program = parser.parse().unwrap_or_else(|e| handle_error(*e));
     if args.dump_ast || args.verbose {
         println!("{parsed_program}");
     }
 
-    let file_name = args.output.unwrap_or(path.file_stem().unwrap().to_string_lossy().to_string());
+    let file_name = args
+        .output
+        .unwrap_or(path.file_stem().unwrap().to_string_lossy().to_string());
     let class_name = args.class.unwrap_or(file_name.clone());
     let jasmin_program = SemanticAnalyzer::new(class_name.as_str(), args.dump_sym)
         .analyze_program(&parsed_program)
         .unwrap_or_else(|e| handle_error(*e));
 
-    if args.dump_cgn || args.verbose{
+    if args.dump_cgn || args.verbose {
         println!("{jasmin_program}");
     }
 
