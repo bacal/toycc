@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 const TAB_WIDTH: usize = 2;
 
 #[derive(Debug)]
-pub struct Program{
+pub struct Program {
     pub definitions: Vec<Definition>,
 }
 
@@ -101,7 +101,14 @@ impl Display for Program {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let width = f.width().unwrap_or_default();
         for definition in &self.definitions {
-            write!(f, "{:>width$}\n{:>width$}\n{:>width$}", "Program(", definition, ")", width = width + TAB_WIDTH)?
+            write!(
+                f,
+                "{:>width$}\n{:>width$}\n{:>width$}",
+                "Program(",
+                definition,
+                ")",
+                width = width + TAB_WIDTH
+            )?
         }
         Ok(())
     }
@@ -111,8 +118,12 @@ impl Display for Definition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let width = f.width().unwrap_or_default();
         let variant = match self {
-            Definition::FuncDef(func_def) => format!("{:>width$}", func_def, width = width + TAB_WIDTH),
-            Definition::VarDef(var_def) => format!("{:>width$}", var_def, width = width + TAB_WIDTH),
+            Definition::FuncDef(func_def) => {
+                format!("{:>width$}", func_def, width = width + TAB_WIDTH)
+            }
+            Definition::VarDef(var_def) => {
+                format!("{:>width$}", var_def, width = width + TAB_WIDTH)
+            }
         };
         write!(f, "{:>width$}\n{:>width$}\n", "Definition(", variant)?;
         write!(f, "{:>width$}", ")", width = width - 1)
@@ -133,6 +144,18 @@ impl Display for VarDef {
 
 impl Display for Statement {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // let width = f.width().unwrap_or_default();
+        // let variant = match self {
+        //     Statement::Expression(e) => {
+        //         // format!("{:>width$}", e, width = width + TAB_WIDTH)
+        //     }
+        //     Statement::Break => {
+        //         format!("{:>width$}", _, width = width + TAB_WIDTH)
+        //     }
+        // };
+        // write!(f, "{:>width$}\n{:>width$}\n", "Definition(", variant)?;
+        // write!(f, "{:>width$}", ")", width = width - 1)
+
         todo!();
     }
 }
