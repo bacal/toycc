@@ -10,7 +10,6 @@ use std::process::exit;
 use crate::error::Error;
 use toycc_argparser::Arguments;
 use toycc_backend_jvm::semantic_analyzer::SemanticAnalyzer;
-use toycc_frontend::ast::Program;
 use toycc_frontend::Parser;
 use toycc_report::{Diagnostic, Report};
 fn main() {
@@ -47,10 +46,8 @@ fn main() {
     let jasmin_program = SemanticAnalyzer::new()
         .analyze_program(&parsed_program, file_name)
         .unwrap_or_else(|e| handle_error(*e));
-
-    println!("{}",jasmin_program);
     let mut output_file = File::create(format!("{file_name}.j")).unwrap();
-    output_file.write(&jasmin_program.as_bytes()).expect("failed to write to file");
+    output_file.write_all(jasmin_program.as_bytes()).expect("failed to write to file");
 }
 
 fn handle_error<T: Report + Diagnostic + Display>(error: T) -> ! {

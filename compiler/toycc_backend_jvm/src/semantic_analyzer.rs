@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use itertools::Itertools;
 use toycc_frontend::ast::{Definition, Expression, FuncDef, Operator, Program, Statement, VarDef};
 use toycc_frontend::Type;
@@ -33,15 +32,12 @@ impl<'a> SemanticAnalyzer<'a>{
     }
     pub fn analyze_program(&mut self, program: &'a Program, name: &'a str) -> Result<String, Box<SemanticError>>{
         self.program_name = name;
-        let mut jasmin_program = format!(".class public {name}\n.super java/lang/Object{}\n",CLASS_INIT_HEADER.to_string());
-        let mut x: Vec<_> = program.definitions
+        let mut jasmin_program = format!(".class public {name}\n.super java/lang/Object{}\n",CLASS_INIT_HEADER);
+        let x: Vec<_> = program.definitions
             .iter()
             .map(|def| self.analyze_definition(def))
             .fold_ok(vec![], |mut acc, mut e| { acc.append(&mut e); acc })?;
-        println!("{:?}",x);
-        // if self.symbol_table[0].find("main").is_none(){
-        //     return Err(Box::new(SemanticError::new(SemanticErrorKind::MissingMain)));
-        // }
+
         jasmin_program += x.join("\t\n").as_str();
 
         Ok(jasmin_program)
@@ -62,10 +58,9 @@ impl<'a> SemanticAnalyzer<'a>{
         };
         self.push_scope();
 
-        func_def.var_def.iter().map(|def| self.analyze_var_def(&def)).fold_ok(0, |acc, f| {
-            f;
-            0
-        })?;
+        for var_def in &func_def.var_def{
+            self.analyze_var_def(var_def)?;
+        }
 
         let mut args: Vec<_> = func_def.var_def.iter()
             .map(|arg|{
@@ -80,19 +75,18 @@ impl<'a> SemanticAnalyzer<'a>{
             return_type = "V";
         }
         let mut body = self.analyze_statement(&func_def.statement)?;
-        println!("{:?}",&body);
+
         self.pop_scope();
         let function = Function::new(func_def.identifier.clone(),
                                      args.clone(),
                                      body.clone(),
                                      func_def.toyc_type.clone());
-        println!("{:?}",&function);
 
         self.insert_symbol(func_def.identifier.as_str(), Symbol::Function(function))?;
 
         body.iter_mut()
-            .filter(|f| !f.starts_with('.') && !f.contains(':'))
-            .for_each(|mut f| f.insert(0,'\t'));
+            .filter(|f| !f.starts_with('.') && !f.ends_with(':'))
+            .for_each(|f| f.insert(0,'\t'));
 
         instructions.push(format!(".method public static {}({}){}\n\t.limit stack 1000\n\t.limit locals 1000\n{}\n.end method\n",
                               func_def.identifier,
@@ -177,7 +171,7 @@ impl<'a> SemanticAnalyzer<'a>{
             Statement::ReturnState(arg) => {
                 match arg{
                     Some(arg) => {
-                        instructions.append(&mut self.analyze_expression(&arg)?);
+                        instructions.append(&mut self.analyze_expression(arg)?);
                         instructions.push("ireturn".to_string());
                     }
                     None => instructions.push("return".to_string())
@@ -216,17 +210,14 @@ impl<'a> SemanticAnalyzer<'a>{
                 instructions.push(format!("{end_label}:"));
             }
             Statement::ReadState(name, others) => {
-                match self.insert_symbol("JAVA_SCANNER", Symbol::Variable(Type::Int, 0)){
-                    Ok(_) =>{
-                        instructions.push("new java/util/Scanner".to_owned());
-                        instructions.push("dup".to_owned());
-                        instructions.push("getstatic java/lang/System/in Ljava/io/InputStream;".to_owned());
-                        instructions.push("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V".to_owned());
-                        instructions.push("astore 0".to_owned());
-                    }
-                    Err(_) => {}
+                if self.insert_symbol("JAVA_SCANNER", Symbol::Variable(Type::Int, 900)).is_ok() {
+                    instructions.push("new java/util/Scanner".to_owned());
+                    instructions.push("dup".to_owned());
+                    instructions.push("getstatic java/lang/System/in Ljava/io/InputStream;".to_owned());
+                    instructions.push("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V".to_owned());
+                    instructions.push("astore 900".to_owned());
                 }
-                instructions.push("aload 0".to_owned());
+                instructions.push("aload 900".to_owned());
 
                 match self.get_symbol(name)?{
                     Symbol::Variable(toyc_type, num) => {
@@ -391,13 +382,13 @@ impl<'a> SemanticAnalyzer<'a>{
 
             }
             Expression::Not(expr) => {
-                let expr = self.analyze_expression(expr)?;
-                let inst1 = "iconst_m1";
-                let inst = "ixor"; //not operation
+                instructions.append(&mut self.analyze_expression(expr)?);
+                instructions.push("iconst_m1".to_owned());
+                instructions.push("ixor".to_owned());
             }
             Expression::Minus(expr) => {
-                let expr = self.analyze_expression(expr)?;
-                let inst = "inot";
+                instructions.append(&mut self.analyze_expression(expr)?);
+                instructions.push("inot".to_owned());
             }
         }
 
@@ -430,7 +421,6 @@ impl<'a> SemanticAnalyzer<'a>{
                     Type::Int => "I",
                     Type::Char => "C",
                 },
-                _ => "V"
             }
             Expression::CharLiteral(_) => "C",
             Expression::StringLiteral(_) => "S",
@@ -439,7 +429,7 @@ impl<'a> SemanticAnalyzer<'a>{
                     Type::Int => "I",
                     Type::Char => "C",
                 },
-                _ => panic!("error?")
+                _ => todo!("Add Error Handling")
             }
             Expression::Expr(_, a, _) => self.get_return_type(a)?,
             Expression::Not(val) => self.get_return_type(val)?,

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::hash::BuildHasher;
+use std::fmt::{Display, Formatter};
 use toycc_frontend::Type;
 use crate::error::{SemanticError, SemanticErrorKind};
 
@@ -12,7 +12,6 @@ pub struct SymbolTable<'a>{
 pub enum Symbol{
     Variable(Type, usize),
     Function(Function),
-    Offset,
 }
 
 #[derive(Debug, Clone)]
@@ -51,6 +50,13 @@ impl<'a> SymbolTable<'a>{
     }
     fn create_error(&mut self, kind:  SemanticErrorKind) -> SemanticError{
         SemanticError::new(kind)
+    }
+}
+
+
+impl<'a> Display for SymbolTable<'a>{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
     }
 }
 
