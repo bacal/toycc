@@ -72,7 +72,11 @@ impl Diagnostic for ParserError {
         match &self.kind {
             ParserErrorKind::ScannerError(s) => s.info(),
             ParserErrorKind::ExpectedDelimiter(d) => format!("expected delimiter: '{d}'"),
-            _ => "".to_string(),
+            ParserErrorKind::Generic => String::new(),
+            ParserErrorKind::ExpectedType => "expected type".to_string(),
+            ParserErrorKind::ExpectedIdentifier => "expected identifier".to_string(),
+            ParserErrorKind::ExpectedKeyword(keyword) => format!("expected {keyword}"),
+            ParserErrorKind::ExpectedNumber => "expected number".to_string(),
         }
     }
 

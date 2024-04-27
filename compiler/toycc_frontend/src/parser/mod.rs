@@ -58,7 +58,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         error_kind: ParserErrorKind,
     ) -> Result<(), Box<ParserError>> {
         if self.next_token()?.kind != token_kind {
-            Err(self.create_error(error_kind))
+            Err(self.create_error(error_kind, Some(self.token.location)))
         } else {
             Ok(())
         }
@@ -84,13 +84,13 @@ impl<'a, S: Read + Seek> Parser<S> {
         self.debug_print("entering definition");
         let tc_type = match &self.next_token()?.kind {
             TokenKind::Type(t) => t,
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedType)),
+            _ => return Err(self.create_error(ParserErrorKind::ExpectedType, None)),
         }
         .clone();
 
         let identifier = match &self.next_token()?.kind {
             TokenKind::Identifier(id) => id,
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
+            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier, None)),
         }
         .clone();
 
@@ -104,7 +104,9 @@ impl<'a, S: Read + Seek> Parser<S> {
                 Definition::FuncDef(FuncDef::new(identifier, tc_type, vardefs, statement))
             }
             _ => {
-                return Err(self.create_error(ParserErrorKind::ExpectedDelimiter(Delimiter::LParen)))
+                return Err(
+                    self.create_error(ParserErrorKind::ExpectedDelimiter(Delimiter::LParen), None)
+                )
             }
         };
         self.debug_print("exiting definition");
@@ -142,13 +144,13 @@ impl<'a, S: Read + Seek> Parser<S> {
                 self.rewind = true;
                 return Ok(param_list);
             }
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedType)),
+            _ => return Err(self.create_error(ParserErrorKind::ExpectedType, None)),
         }
         .clone();
 
         let identifier = match &self.next_token()?.kind {
             TokenKind::Identifier(id) => id,
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
+            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier, None)),
         }
         .clone();
 
@@ -170,13 +172,13 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         let tc_type = match &self.next_token()?.kind {
             TokenKind::Type(t) => t,
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedType)),
+            _ => return Err(self.create_error(ParserErrorKind::ExpectedType, None)),
         }
         .clone();
 
         let identifier = match &self.next_token()?.kind {
             TokenKind::Identifier(id) => id,
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
+            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier, None)),
         }
         .clone();
         params.push(VarDef::new(vec![identifier], tc_type));
@@ -232,7 +234,7 @@ impl<'a, S: Read + Seek> Parser<S> {
             TokenKind::Identifier(id) => {
                 declarations.push(VarDef::new(vec![id.clone()], toyc_type))
             }
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
+            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier, None)),
         };
 
         self.accept(
@@ -385,7 +387,7 @@ impl<'a, S: Read + Seek> Parser<S> {
 
         let identifier = match &self.next_token()?.kind {
             TokenKind::Identifier(id) => id.clone(),
-            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
+            _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier, None)),
         };
 
         let others = self.read_rep()?;
@@ -479,7 +481,7 @@ impl<'a, S: Read + Seek> Parser<S> {
         if self.next_token()?.kind == TokenKind::Delimiter(Delimiter::Comma) {
             match &self.next_token()?.kind {
                 TokenKind::Identifier(id) => repetitions.push(id.clone()),
-                _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier)),
+                _ => return Err(self.create_error(ParserErrorKind::ExpectedIdentifier, None)),
             };
             repetitions.append(&mut self.read_rep()?);
         } else {
@@ -616,7 +618,7 @@ impl<'a, S: Read + Seek> Parser<S> {
 
             TokenKind::AddOP(AddOP::Minus) => Expression::Minus(Box::new(self.primary()?)),
 
-            _ => return Err(self.create_error(ParserErrorKind::Generic)),
+            _ => return Err(self.create_error(ParserErrorKind::Generic, None)),
         };
         self.debug_print("exiting primary");
 
@@ -686,11 +688,16 @@ impl<'a, S: Read + Seek> Parser<S> {
         }
     }
 
-    fn create_error(&mut self, kind: ParserErrorKind) -> Box<ParserError> {
-        let location = (
+    fn create_error(
+        &mut self,
+        kind: ParserErrorKind,
+        location: Option<(usize, usize)>,
+    ) -> Box<ParserError> {
+        let location = location.unwrap_or((
             self.previous_token.location.0,
             self.previous_token.location.1 + 2,
-        );
+        ));
+
         let line = self.scanner.error_get_line(location);
         let stream_name = self.scanner.stream.name.clone().unwrap_or_default();
         Box::new(ParserError::new(kind, line, location, 1, stream_name, None))
