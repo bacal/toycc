@@ -45,12 +45,7 @@ impl Diagnostic for SemanticError {
     }
 
     fn level(&self) -> ReportLevel {
-        ReportLevel::Error(ErrorKind::ParsingError {
-            file_name: Default::default(),
-            pos: (1, 1),
-            len: Default::default(),
-            source: Default::default(),
-        })
+        ReportLevel::Error(ErrorKind::NoHelpError)
     }
 
     fn help(&self) -> Option<String> {
