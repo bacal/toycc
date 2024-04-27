@@ -134,21 +134,11 @@ impl Display for Program {
             width = width + "Program(".len()
         )?;
 
-
         for definition in &self.definitions {
-            writeln!(
-                f,
-                "{:>indent$}",
-                definition
-            )?
+            writeln!(f, "{:>indent$}", definition)?
         }
 
-        writeln!(
-            f,
-            "{:>width$}",
-            ")",
-            width = width + 1
-        )
+        writeln!(f, "{:>width$}", ")", width = width + 1)
     }
 }
 

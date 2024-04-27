@@ -104,7 +104,9 @@ impl<'a, S: Read + Seek> Parser<S> {
                 Definition::FuncDef(FuncDef::new(identifier, tc_type, vardefs, statement))
             }
             _ => {
-                return Err(self.create_error(ParserErrorKind::ExpectedDelimiter(Delimiter::LParen), None))
+                return Err(
+                    self.create_error(ParserErrorKind::ExpectedDelimiter(Delimiter::LParen), None)
+                )
             }
         };
         self.debug_print("exiting definition");
@@ -686,7 +688,11 @@ impl<'a, S: Read + Seek> Parser<S> {
         }
     }
 
-    fn create_error(&mut self, kind: ParserErrorKind, location: Option<(usize, usize)>) -> Box<ParserError> {
+    fn create_error(
+        &mut self,
+        kind: ParserErrorKind,
+        location: Option<(usize, usize)>,
+    ) -> Box<ParserError> {
         let location = location.unwrap_or((
             self.previous_token.location.0,
             self.previous_token.location.1 + 2,
