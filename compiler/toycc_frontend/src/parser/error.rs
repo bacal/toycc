@@ -73,10 +73,10 @@ impl Diagnostic for ParserError {
             ParserErrorKind::ScannerError(s) => s.info(),
             ParserErrorKind::ExpectedDelimiter(d) => format!("expected delimiter: '{d}'"),
             ParserErrorKind::Generic => String::new(),
-            ParserErrorKind::ExpectedType => format!("expected type"),
-            ParserErrorKind::ExpectedIdentifier => format!("expected identifier"),
+            ParserErrorKind::ExpectedType => "expected type".to_string(),
+            ParserErrorKind::ExpectedIdentifier => "expected identifier".to_string(),
             ParserErrorKind::ExpectedKeyword(keyword) => format!("expected {keyword}"),
-            ParserErrorKind::ExpectedNumber => format!("expected number"),
+            ParserErrorKind::ExpectedNumber => "expected number".to_string(),
         }
     }
 

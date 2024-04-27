@@ -127,14 +127,28 @@ impl Display for Program {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let width = f.width().unwrap_or_default();
         let indent = width + TAB_WIDTH;
+        writeln!(
+            f,
+            "{:>width$}",
+            "Program(",
+            width = width + "Program(".len()
+        )?;
+
+
         for definition in &self.definitions {
-            write!(
+            writeln!(
                 f,
-                "{:>width$}\n{:>indent$}\n{:>width$}\n",
-                "Program(", definition, ")"
+                "{:>indent$}",
+                definition
             )?
         }
-        Ok(())
+
+        writeln!(
+            f,
+            "{:>width$}",
+            ")",
+            width = width + 1
+        )
     }
 }
 
@@ -194,7 +208,7 @@ impl Display for FuncDef {
             self.toyc_type.to_string(),
             width = indent + 5
         )?;
-        writeln!(f, "{:>dindent$}", ")")?;
+        writeln!(f, "{:>indent$}", ")", indent = indent + 1)?;
 
         for def in &self.var_def {
             writeln!(f, "{:>indent$},", def, indent = indent + 2)?;
@@ -207,7 +221,7 @@ impl Display for FuncDef {
             indent = indent + "Statement(".len()
         )?;
         writeln!(f, "{:>dindent$}", self.statement)?;
-        writeln!(f, "{:>indent$}", ")")?;
+        writeln!(f, "{:>indent$}", ")", indent = indent + 1)?;
 
         write!(f, "{:>width$}", ")", width = width + 1)
     }
@@ -237,7 +251,7 @@ impl Display for VarDef {
             writeln!(f, "{:>width$}", id, width = dindent + id.len())?;
             writeln!(f, "{:>indent$}", "),", indent = indent + 2)?;
         }
-        write!(f, "{:>width$}", ")")
+        write!(f, "{:>width$}", ")", width = width + 1)
     }
 }
 
@@ -267,14 +281,16 @@ impl Display for Statement {
                     width = width + "BlockStatement(".len()
                 )?;
                 writeln!(f, "{:>indent$}", "[", indent = indent + 1)?;
-                let u_formatted = vars.iter().map(|i| format!("{:>dindent$}", i)).join(",\n");
+                let u_formatted = vars.iter().map(|i| format!("{:>indent$}", i)).join(",\n");
                 writeln!(f, "{}", u_formatted)?;
                 writeln!(f, "{:>indent$}", "],", indent = indent + 2)?;
 
                 writeln!(f, "{:>indent$}", "[", indent = indent + 1)?;
-                let v_formatted = stmts.iter().map(|i| format!("{:>dindent$}", i)).join(",\n");
-                writeln!(f, "{:>width$}", v_formatted)?;
-                write!(f, "{:>width$}", "],", width = width + 2)
+                let v_formatted = stmts.iter().map(|i| format!("{:>indent$}", i)).join(",\n");
+                writeln!(f, "{}", v_formatted)?;
+                writeln!(f, "{:>indent$}", "],", indent = indent + 2)?;
+
+                write!(f, "{:>width$}", ")", width = width + 1)
             }
 
             Statement::IfState(expr, if_stmt, else_stmt) => {
@@ -444,7 +460,7 @@ impl Display for Expression {
                 )?;
                 writeln!(f, "{:>indent$},", name, indent = indent + name.len())?;
                 for expr in expressions {
-                    writeln!(f, "{:>indent$},", expr, indent = indent + 1)?;
+                    writeln!(f, "{:>indent$},", expr)?;
                 }
                 writeln!(f, "{:>width$}", ")", width = width + 1)
             }
@@ -456,21 +472,22 @@ impl Display for Expression {
                     op.to_string(),
                     indent = indent + op.to_string().len()
                 )?;
-                writeln!(f, "{:>indent$},", expra, indent = indent + 1)?;
-                writeln!(f, "{:>indent$},", exprb, indent = indent + 1)?;
+                writeln!(f, "{:>indent$},", expra)?;
+                writeln!(f, "{:>indent$},", exprb)?;
                 writeln!(f, "{:>width$}", ")", width = width + 1)
             }
             Expression::Not(expr) => {
                 writeln!(f, "{:>width$}", "Not(", width = width + "Not(".len())?;
-                writeln!(f, "{:>indent$},", expr, indent = indent + 1)?;
+                writeln!(f, "{:>indent$},", expr)?;
                 writeln!(f, "{:>width$}", ")", width = width + 1)
             }
             Expression::Minus(expr) => {
-                writeln!(f, "{:>width$}", "Minus(")?;
-                writeln!(f, "{:>indent$},", expr, indent = indent + 1)?;
+                writeln!(f, "{:>width$}", "Minus(", width = width + "Minus(".len())?;
+                writeln!(f, "{:>indent$},", expr)?;
                 writeln!(f, "{:>width$}", ")", width = width + 1)
             }
         }?;
+        let width = f.width().unwrap_or_default();
         write!(f, "{:>width$}", ')', width = width + 1)
     }
 }
