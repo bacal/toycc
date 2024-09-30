@@ -272,9 +272,10 @@ impl<'a> SemanticAnalyzer<'a> {
             },
             Statement::WhileState(expr, statement) => {
                 self.conditional_count += 1;
+                let top_label = format!("CW{}", self.conditional_count);
                 let then_label = format!("CT{}", self.conditional_count);
                 let end_label = format!("CE{}", self.conditional_count);
-
+                instructions.push(format!("{top_label}:"));
                 instructions.append(&mut self.analyze_expression(expr)?);
 
                 match expr {
@@ -289,16 +290,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 instructions.push(format!("{then_label}:"));
                 instructions.append(&mut self.analyze_statement(statement)?);
 
-                match expr {
-                    Expression::Expr(..) => {
-                        instructions.append(&mut self.analyze_expression(expr)?)
-                    }
-                    _ => {
-                        instructions.append(&mut self.analyze_expression(expr)?);
-                        instructions.push("iconst_1".to_string());
-                        instructions.push(format!("if_icmpeq {then_label}"));
-                    }
-                }
+                instructions.push(format!("goto {top_label}"));
                 instructions.push(format!("{end_label}:"));
             }
             Statement::ReadState(name, others) => {
