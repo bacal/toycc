@@ -261,6 +261,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     instructions.append(&mut self.analyze_statement(else_statement)?);
                 }
                 instructions.push(format!("{end_label}:"));
+                self.conditional_count -= 1;
             }
             Statement::NullState => {}
             Statement::ReturnState(arg) => match arg {
