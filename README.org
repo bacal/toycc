@@ -1,0 +1,24 @@
+#+author: Bacal Mesfin, Yakub Mukhtar
+#+language: rust
+#+build_tool: Cargo (builtin)
+#+title: Toyc Compiler
+#+options: toc:nil
+
+* Instructions
+** Build
+#+begin_src shell
+  cargo build --release
+#+end_src
+** Run
+#+begin_src shell
+  cargo run -- <arguments>
+#+end_src
+or
+#+begin_src shell
+  ./target/release/toycc <arguments>
+#+end_src
+
+** Clean
+#+begin_src shell
+  cargo clean
+#+end_src
